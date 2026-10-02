@@ -1,0 +1,148 @@
+# Corpus manifest. One entry per Source Document; see CONTEXT.md.
+# effective_date is set only when the document prints one; otherwise the As-of Date is the fetch date.
+documents:
+  # BIR
+  - url: "https://bir-cdn.bir.gov.ph/local/pdf/cc-rr-rdo-external.pdf"
+    agency: BIR
+    kind: service
+    title: "BIR Citizen's Charter: Revenue District Office External Services"
+  # PhilHealth
+  - url: "https://www.philhealth.gov.ph/arta/articles/handbook/external/MemberManagementGroup_ExternalServices_PCC2024Volume7_1stEdition.pdf"
+    agency: PhilHealth
+    kind: service
+    title: "PhilHealth Citizen's Charter 2024 Vol. 7: Member Management Group External Services"
+  - url: "https://www.philhealth.gov.ph/arta/articles/handbook/external/OperationsSector_ExternalServices_PCC2024Volume5_1st%20Edition.pdf"
+    agency: PhilHealth
+    kind: service
+    title: "PhilHealth Citizen's Charter 2024 Vol. 5: Operations Sector External Services"
+  - url: "https://www.philhealth.gov.ph/arta/articles/handbook/external/PhilHealthRegionalOffice_ExternalServices_PCC2024Volume11_1stEdition.pdf"
+    agency: PhilHealth
+    kind: service
+    title: "PhilHealth Citizen's Charter 2024 Vol. 11: Regional Office External Services"
+  - url: "https://www.philhealth.gov.ph/benefits/"
+    agency: PhilHealth
+    kind: service
+    title: "PhilHealth: Benefits"
+  # SSS
+  - url: "https://www.sss.gov.ph/calamity-loan/"
+    agency: SSS
+    kind: service
+    title: "SSS: Calamity Loan"
+  - url: "https://www.sss.gov.ph/death-benefit/"
+    agency: SSS
+    kind: service
+    title: "SSS: Death Benefit"
+  - url: "https://www.sss.gov.ph/disability-benefit/"
+    agency: SSS
+    kind: service
+    title: "SSS: Disability Benefit"
+  - url: "https://www.sss.gov.ph/funeral-benefit/"
+    agency: SSS
+    kind: service
+    title: "SSS: Funeral Benefit"
+  - url: "https://www.sss.gov.ph/maternity-benefit/"
+    agency: SSS
+    kind: service
+    title: "SSS: Maternity Benefit"
+  - url: "https://www.sss.gov.ph/new-pension-loan-retiree/"
+    agency: SSS
+    kind: service
+    title: "SSS: New Pension Loan Retiree"
+  - url: "https://www.sss.gov.ph/pay-contribution/"
+    agency: SSS
+    kind: service
+    title: "SSS: Pay Contribution"
+  - url: "https://www.sss.gov.ph/pay-loans/"
+    agency: SSS
+    kind: service
+    title: "SSS: Pay Loans"
+  - url: "https://www.sss.gov.ph/pension-loan-first-time-applicants/"
+    agency: SSS
+    kind: service
+    title: "SSS: Pension Loan First Time Applicants"
+  - url: "https://www.sss.gov.ph/retirement-benefit/"
+    agency: SSS
+    kind: service
+    title: "SSS: Retirement Benefit"
+  - url: "https://www.sss.gov.ph/salary-loan/"
+    agency: SSS
+    kind: service
+    title: "SSS: Salary Loan"
+  - url: "https://www.sss.gov.ph/sickness-benefit/"
+    agency: SSS
+    kind: service
+    title: "SSS: Sickness Benefit"
+  - url: "https://www.sss.gov.ph/sss-conso-loan-program/"
+    agency: SSS
+    kind: service
+    title: "SSS: Consolidated Loan Program"
+  - url: "https://www.sss.gov.ph/sss-contribution-table/"
+    agency: SSS
+    kind: service
+    title: "SSS: Contribution Table"
+  - url: "https://www.sss.gov.ph/sss-emergency-loan-program/"
+    agency: SSS
+    kind: service
+    title: "SSS: Emergency Loan Program"
+  - url: "https://www.sss.gov.ph/unemployment-benefit/"
+    agency: SSS
+    kind: service
+    title: "SSS: Unemployment Benefit"
+  # Pasig City (LGU)
+  - url: "https://assets.pasigcity.gov.ph/storage/attachments/business_permit_and_licensing_department/686768e6a0f0a1751607526Citizen_s%20Charter%20English.pdf"
+    agency: Pasig City
+    kind: service
+    title: "Pasig City Citizen's Charter: Business Permit and Licensing Department"
+  - url: "https://assets.pasigcity.gov.ph/storage/attachments/office_of_the_building_official/686788cae06521751615690Citizen_s%20Charter%20English.pdf"
+    agency: Pasig City
+    kind: service
+    title: "Pasig City Citizen's Charter: Office of the Building Official"
+  - url: "https://assets.pasigcity.gov.ph/storage/attachments/office_of_the_senior_citizen_affairs/686b673acd45c1751869242Citizen_s%20Charter%20English.pdf"
+    agency: Pasig City
+    kind: service
+    title: "Pasig City Citizen's Charter: Office of the Senior Citizen Affairs"
+  - url: "https://assets.pasigcity.gov.ph/storage/attachments/person_with_disability_affairs_office/686b67e4b86c11751869412Citizen_s%20Charter%20English.pdf"
+    agency: Pasig City
+    kind: service
+    title: "Pasig City Citizen's Charter: Persons with Disability Affairs Office"
+  - url: "https://assets.pasigcity.gov.ph/storage/attachments/pasig_social_welfare_and_development_office/686b67911b50c1751869329Citizen_s%20Charter%20English.pdf"
+    agency: Pasig City
+    kind: service
+    title: "Pasig City Citizen's Charter: Social Welfare and Development Office"
+  - url: "https://assets.pasigcity.gov.ph/storage/attachments/pasig_city_health_department/686b58c0de12f1751865536Citizen_s%20Charter%20English.pdf"
+    agency: Pasig City
+    kind: service
+    title: "Pasig City Citizen's Charter: City Health Department"
+  - url: "https://assets.pasigcity.gov.ph/storage/attachments/public_employment_services_office/6867700015eca1751609344Citizen_s%20Charter%20English.pdf"
+    agency: Pasig City
+    kind: service
+    title: "Pasig City Citizen's Charter: Public Employment Service Office"
+  # Statutes (lawphil.net)
+  - url: "https://lawphil.net/statutes/repacts/ra2019/ra_11199_2019.html"
+    agency: SSS
+    kind: statute
+    title: "Republic Act No. 11199 (Social Security Act of 2018)"
+  - url: "https://lawphil.net/statutes/repacts/ra2019/ra_11223_2019.html"
+    agency: PhilHealth
+    kind: statute
+    title: "Republic Act No. 11223 (Universal Health Care Act)"
+  - url: "https://lawphil.net/statutes/repacts/ra2018/ra_11032_2018.html"
+    agency: ARTA
+    kind: statute
+    title: "Republic Act No. 11032 (Ease of Doing Business and Efficient Government Service Delivery Act of 2018)"
+  - url: "https://lawphil.net/statutes/repacts/ra2017/ra_10963_2017.html"
+    agency: BIR
+    kind: statute
+    title: "Republic Act No. 10963 (Tax Reform for Acceleration and Inclusion)"
+  - url: "https://lawphil.net/statutes/repacts/ra2010/ra_9994_2010.html"
+    agency: DSWD
+    kind: statute
+    title: "Republic Act No. 9994 (Expanded Senior Citizens Act of 2010)"
+  - url: "https://lawphil.net/statutes/repacts/ra2016/ra_10754_2016.html"
+    agency: DSWD
+    kind: statute
+    title: "Republic Act No. 10754 (Expanded benefits and privileges of persons with disability)"
+  - url: "https://lawphil.net/statutes/repacts/ra2018/ra_11055_2018.html"
+    agency: PSA
+    kind: statute
+    title: "Republic Act No. 11055 (Philippine Identification System Act)"

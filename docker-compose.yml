@@ -1,0 +1,37 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: guardrag
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-guardrag}
+      POSTGRES_DB: guardrag
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guardrag -d guardrag"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://guardrag:${POSTGRES_PASSWORD:-guardrag}@db:5432/guardrag
+    volumes:
+      - models:/models
+      - ./data:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  models:
