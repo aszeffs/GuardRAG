@@ -8,6 +8,7 @@ venv/
 .mypy_cache/
 data/raw/
 data/cache/
+data/extracted/
 models/
 *.egg-info/
 node_modules/

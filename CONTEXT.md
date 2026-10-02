@@ -22,6 +22,10 @@ _Avoid_: legal doc, regulation
 The government body that issues a document or delivers a service (BIR, PhilHealth, SSS, Pag-IBIG, an LGU).
 _Avoid_: office, department
 
+**Passage**:
+A short, contiguous excerpt of one document within a single section. It is the unit that gets retrieved and cited.
+_Avoid_: snippet, excerpt
+
 ### Questions and answers
 
 **Out-of-Corpus Question**:
