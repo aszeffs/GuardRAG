@@ -57,8 +57,9 @@ def check(text: str, *, today: date) -> list[str]:
     """Return every problem with the exceptions in `text`; empty means the file is fine."""
     try:
         document = yaml.load(text, Loader=_StrictLoader)  # noqa: S506 - a SafeLoader subclass
-    except (yaml.YAMLError, ValueError) as error:
+    except (yaml.YAMLError, ValueError, TypeError) as error:
         # ValueError: PyYAML turns 2026-13-40 into a date and fails doing it.
+        # TypeError: a key YAML cannot hash, such as `? [a]`.
         return [f"cannot read the file: {error}"]
 
     if document is None:
@@ -77,46 +78,46 @@ def check(text: str, *, today: date) -> list[str]:
             problems.append(f"`{section}` must be a list of exceptions.")
             continue
         for index, exception in enumerate(entries, start=1):
-            problems.extend(_inspect(exception, f"{section}[{index}]", today))
+            problems.extend(_problems_with(exception, f"{section}[{index}]", today))
     return problems
 
 
-def _inspect(exception: object, where: str, today: date) -> list[str]:
+def _problems_with(exception: object, subject: str, today: date) -> list[str]:
     if not isinstance(exception, dict):
-        return [f"{where}: an exception must be a mapping of fields."]
+        return [f"{subject}: an exception must be a mapping of fields."]
 
     problems = [
-        f"{where}: `{name}` is not a field Trivy reads here (expected: {FIELDS})."
+        f"{subject}: `{name}` is not a field Trivy reads here (expected: {FIELDS})."
         for name in exception
         if name not in FIELDS
     ]
 
     finding = exception.get("id")
     if not isinstance(finding, str) or not finding.strip():
-        problems.append(f"{where}: has no `id`, so it names no finding.")
+        problems.append(f"{subject}: has no `id`, so it names no finding.")
     else:
-        where = f"`{finding}`"
+        subject = f"`{finding}`"
 
     statement = exception.get("statement")
     if not isinstance(statement, str) or len(statement.strip()) < MIN_STATEMENT_LENGTH:
         problems.append(
-            f"{where}: needs a `statement` of at least {MIN_STATEMENT_LENGTH} characters "
+            f"{subject}: needs a `statement` of at least {MIN_STATEMENT_LENGTH} characters "
             "saying why the finding cannot be fixed."
         )
 
     expiry = _as_date(exception.get("expired_at"))
     if "expired_at" not in exception:
-        problems.append(f"{where}: needs an `expired_at` date, so the decision is revisited.")
+        problems.append(f"{subject}: needs an `expired_at` date, so the decision is revisited.")
     elif expiry is None:
-        problems.append(f"{where}: `expired_at` must be a YYYY-MM-DD date.")
+        problems.append(f"{subject}: `expired_at` must be a YYYY-MM-DD date.")
     elif expiry < today:
         problems.append(
-            f"{where}: the exception expired on {expiry.isoformat()}. Remove it if the "
+            f"{subject}: the exception expired on {expiry.isoformat()}. Remove it if the "
             "finding is gone, or renew it with a fresh justification."
         )
     elif (expiry - today).days > MAX_EXCEPTION_DAYS:
         problems.append(
-            f"{where}: `expired_at: {expiry.isoformat()}` is {(expiry - today).days} days out; "
+            f"{subject}: `expired_at: {expiry.isoformat()}` is {(expiry - today).days} days out; "
             f"no exception may run longer than {MAX_EXCEPTION_DAYS} days without review."
         )
     return problems

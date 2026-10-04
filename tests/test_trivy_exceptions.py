@@ -107,3 +107,7 @@ def test_cli_gates_on_problems(tmp_path: Path, capsys: pytest.CaptureFixture[str
 
 def test_the_repository_exceptions_pass(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["check"]) == 0, capsys.readouterr().out
+
+
+def test_an_unreadable_key_is_reported_not_raised() -> None:
+    assert check("vulnerabilities:\n  - ? [a]\n    : b\n", today=TODAY)
