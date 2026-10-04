@@ -1,0 +1,112 @@
+"""Acceptance tests for the prompt and structured output (#7), at the LLM seam: `GroqLLM.draft`
+with a fake Groq client, so they check what is sent and how replies are read, not the wording.
+
+The Answer Language rule needs a real model, so it is measured by the evals, not here. Skipped
+while `build_messages` or `parse_draft` raise NotImplementedError.
+"""
+
+import json
+
+import pytest
+from fakes import FakeClassifier, FakeGroqClient, StaticRetriever
+from fastapi.testclient import TestClient
+from seed import LOAN_APPLICATION, LOAN_ELIGIBILITY, ONE_TIME_TAXPAYER, retrieved
+
+from guardrag.answer import DraftAnswer
+from guardrag.api import create_app
+from guardrag.llm import ANSWER_MODEL, GroqLLM
+
+pytestmark = pytest.mark.pending("#7")
+
+PASSAGES = [retrieved(LOAN_APPLICATION, 0.9), retrieved(LOAN_ELIGIBILITY, 0.6)]
+QUESTION = "Paano mag-apply ng salary loan sa SSS?"
+
+
+def draft_with(*replies: str | None) -> tuple[DraftAnswer, FakeGroqClient]:
+    client = FakeGroqClient(list(replies))
+    return GroqLLM("gsk_test", client=client).draft(QUESTION, PASSAGES), client
+
+
+def reply(**fields) -> str:
+    return json.dumps(fields)
+
+
+def test_asks_the_answer_model_for_json() -> None:
+    _, client = draft_with(reply(answer="a", citations=[202]))
+
+    [request] = client.requests
+    assert request["model"] == ANSWER_MODEL
+    assert request["response_format"]["type"] in ("json_object", "json_schema")
+
+
+def test_every_passage_is_given_with_its_id() -> None:
+    _, client = draft_with(reply(answer="a", citations=[202]))
+
+    sent = "\n".join(m["content"] for m in client.requests[0]["messages"])
+    for p in PASSAGES:
+        assert str(p.passage_id) in sent
+        assert p.text in sent
+    assert QUESTION in sent
+
+
+def test_passages_and_question_stay_out_of_the_system_message() -> None:
+    """Retrieved text is data, not instructions, so it never shares the system message."""
+    _, client = draft_with(reply(answer="a", citations=[202]))
+
+    messages = client.requests[0]["messages"]
+    assert messages[0]["role"] == "system"
+    assert all(p.text not in messages[0]["content"] for p in PASSAGES)
+    assert QUESTION not in messages[0]["content"]
+
+
+def test_a_well_formed_reply_becomes_the_draft() -> None:
+    draft, _ = draft_with(
+        reply(answer="Mag-apply online sa My.SSS member portal.", citations=[202, 201])
+    )
+
+    assert draft == DraftAnswer(
+        answer="Mag-apply online sa My.SSS member portal.", citations=[202, 201]
+    )
+
+
+def test_an_out_of_scope_reply_is_kept() -> None:
+    draft, _ = draft_with(
+        reply(answer="I can only help with government services.", citations=[], out_of_scope=True)
+    )
+
+    assert draft.out_of_scope is True
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        None,
+        "",
+        "Sure! Apply through My.SSS.",
+        '{"answer": "cut off',
+        reply(citations=[202]),
+        reply(answer="a", citations="202"),
+        reply(answer="a", citations=["first passage"]),
+        json.dumps(["a", [202]]),
+    ],
+    ids=["none", "empty", "prose", "truncated", "no-answer", "str-ids", "word-ids", "array"],
+)
+def test_a_malformed_reply_becomes_a_draft_with_no_citations(content) -> None:
+    draft, _ = draft_with(content)
+
+    assert draft.citations == []
+    assert draft.out_of_scope is False
+
+
+@pytest.mark.pending("#7 and #8")
+def test_a_malformed_reply_is_an_out_of_corpus_refusal_not_an_error() -> None:
+    app = create_app(
+        retriever=StaticRetriever([retrieved(ONE_TIME_TAXPAYER, 0.8)]),
+        llm=GroqLLM("gsk_test", client=FakeGroqClient(["not json at all"])),
+        classifier=FakeClassifier(),
+    )
+
+    response = TestClient(app).post("/ask", json={"question": QUESTION})
+
+    assert response.status_code == 200
+    assert response.json()["refusal"] == "out_of_corpus"

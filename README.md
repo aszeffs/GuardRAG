@@ -12,6 +12,16 @@ A secure RAG assistant over public Philippine government service documents (BIR,
 - Red-team: promptfoo suite (prompt injection, jailbreak, PII, off-topic)
 - GitHub Actions: eval and red-team gates, plus CodeQL, Gitleaks, Trivy, SBOM, signed images
 
+## Tests
+
+```sh
+docker compose up -d db
+pip install -e ".[dev]"
+pytest -rs
+```
+
+Tests marked `db` need Postgres. Locally they are skipped when it isn't running, but CI always runs them. Retrieval tests run against a separate `guardrag_test` database, which is recreated each run and seeded with a small fixed Corpus (`tests/seed.py`). Tests marked `pending("#N")` describe a ticket that hasn't landed yet. They report as skipped while the code they exercise raises `NotImplementedError`, then run for real once it doesn't.
+
 ## Security pipeline
 
 Every pull request into `main` runs CodeQL (Python), Gitleaks over the full history, dependency review, and a container build that is smoke-tested against pgvector and scanned with Trivy. All of these are required checks on `main`. Actions are pinned to commit SHAs and images to digests, and each workflow starts read-only, widening permissions only in the job that needs them.
