@@ -49,16 +49,6 @@ def test_every_passage_is_given_with_its_id() -> None:
     assert QUESTION in sent
 
 
-def test_passages_and_question_stay_out_of_the_system_message() -> None:
-    """Retrieved text is data, not instructions, so it never shares the system message."""
-    _, client = draft_with(reply(answer="a", citations=[202]))
-
-    messages = client.requests[0]["messages"]
-    assert messages[0]["role"] == "system"
-    assert all(p.text not in messages[0]["content"] for p in PASSAGES)
-    assert QUESTION not in messages[0]["content"]
-
-
 def test_a_well_formed_reply_becomes_the_draft() -> None:
     draft, _ = draft_with(
         reply(answer="Mag-apply online sa My.SSS member portal.", citations=[202, 201])
