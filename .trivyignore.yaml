@@ -1,0 +1,25 @@
+# Trivy exceptions.
+#
+# Findings recorded here are excluded from the gate in
+# `.github/workflows/container.yml`. Nothing else is: the threshold stays at
+# HIGH, `ignore-unfixed` stays off, and the gate stays on. This file is the only
+# way around a finding, and it is deliberately the expensive way.
+#
+# Every entry needs three things, and `scripts/check_trivy_exceptions.py` fails
+# the build if any is missing:
+#
+#   id          the finding, exactly as Trivy reports it
+#   statement   why it cannot be fixed here, in a sentence someone else can read
+#   expired_at  YYYY-MM-DD, at most 180 days out, when the decision is revisited
+#
+# Entries go under the section matching the scan that raised them:
+# `vulnerabilities:` for a CVE in the image or a dependency, `misconfigurations:`
+# for a Dockerfile check such as DS-0002.
+#
+# Trivy stops honouring an entry the day it expires, so a forgotten exception
+# reopens the gate rather than quietly holding it shut. See
+# `docs/trivy-exceptions.md`.
+
+vulnerabilities: []
+
+misconfigurations: []

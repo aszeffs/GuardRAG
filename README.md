@@ -11,3 +11,18 @@ A secure RAG assistant over public Philippine government service documents (BIR,
 - Evals: hand-written golden set (recall@5, MRR), Ragas (faithfulness, answer relevancy, context precision)
 - Red-team: promptfoo suite (prompt injection, jailbreak, PII, off-topic)
 - GitHub Actions: eval and red-team gates, plus CodeQL, Gitleaks, Trivy, SBOM, signed images
+
+## Security pipeline
+
+Every pull request runs CodeQL (Python), Gitleaks over the full history, dependency review, and a container build that is smoke-tested against pgvector and scanned with Trivy. All of these are required checks on `main`. Actions are pinned to commit SHAs and images to digests, and each workflow starts read-only, widening permissions only in the job that needs them.
+
+A merge to `main` publishes the scanned image to `ghcr.io/aszeffs/guardrag` and attaches Sigstore-signed SLSA build provenance and an SPDX SBOM. To verify an image:
+
+```sh
+gh attestation verify oci://ghcr.io/aszeffs/guardrag:<commit> \
+  --repo aszeffs/GuardRAG \
+  --signer-workflow aszeffs/GuardRAG/.github/workflows/container.yml \
+  --source-ref refs/heads/main
+```
+
+Trivy exceptions are recorded in `.trivyignore.yaml`, each with a reason and an expiry; see `docs/trivy-exceptions.md`.
