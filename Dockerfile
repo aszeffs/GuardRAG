@@ -6,9 +6,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     FASTEMBED_CACHE_PATH=/models
 WORKDIR /app
 
+# The base image lags Debian's security archive by days to weeks. Upgrading here
+# takes fixes Debian has already published; Trivy then scans exactly the result.
+RUN apt-get update \
+    && apt-get upgrade --yes --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml ./
 COPY guardrag ./guardrag
-RUN pip install .
+# pip is needed only to install; removing it takes its CVEs out of the image.
+RUN pip install . && pip uninstall --yes pip
 
 RUN useradd --create-home --uid 10001 app && mkdir -p /models /app/data && chown app /models /app/data
 USER app
