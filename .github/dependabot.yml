@@ -1,0 +1,46 @@
+version: 2
+
+# One pull request a week for every ecosystem, majors included, so dependency
+# changes arrive as a single unit that CI checks as a whole. Security updates
+# are still raised one per advisory, as soon as the advisory is published.
+multi-ecosystem-groups:
+  all-dependencies:
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Manila
+    commit-message:
+      prefix: chore
+      include: scope
+
+updates:
+  # Runtime and dev dependencies, from `pyproject.toml`.
+  - package-ecosystem: pip
+    directory: /
+    multi-ecosystem-group: all-dependencies
+    patterns: ["*"]
+
+  # Actions are pinned to commit SHAs, which stops a moved tag from changing
+  # what runs here. Without this, pinning would decay into running permanently
+  # outdated actions. Dependabot bumps the SHA and its version comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    multi-ecosystem-group: all-dependencies
+    patterns: ["*"]
+
+  # The base image is pinned by digest in the Dockerfile, which decays the same
+  # way. Dependabot rewrites the `image:tag@sha256:...` reference in place.
+  #
+  # The pgvector service image in ci.yml and container.yml is not covered:
+  # Dependabot does not read image references in workflow files, so that digest
+  # is bumped by hand.
+  - package-ecosystem: docker
+    directory: /
+    multi-ecosystem-group: all-dependencies
+    patterns: ["*"]
+    ignore:
+      # The Python minor is a deliberate change: the Dockerfile, setup-python in
+      # the workflows, and `requires-python` together.
+      - dependency-name: python
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]

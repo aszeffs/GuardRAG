@@ -29,6 +29,7 @@ include = ["guardrag*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["scripts"]
 markers = ["db: needs a running Postgres (docker compose up db)"]
 
 [tool.ruff]

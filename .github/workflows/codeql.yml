@@ -1,0 +1,44 @@
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # CodeQL's rules improve over time. The scheduled run is what finds an old
+    # bug with a new rule in code nobody has touched.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze Python
+    runs-on: ubuntu-latest
+    permissions:
+      # Widened only here, and only for what CodeQL needs: reading the code and
+      # writing its findings to the Security tab.
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          languages: python
+          # Python is analysed from source; there is nothing to build.
+          build-mode: none
+          # Wider than the default suite. On a codebase this small the extra
+          # noise costs nothing, and the habit is cheaper to form now than to
+          # retrofit.
+          queries: security-and-quality
+
+      - name: Analyze
+        # Uploads SARIF to code scanning, which puts findings in the Security
+        # tab beside the Trivy results rather than in a log nobody opens.
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          category: /language:python
