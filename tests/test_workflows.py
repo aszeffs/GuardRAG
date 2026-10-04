@@ -31,8 +31,13 @@ def load(path: Path) -> dict:
 def test_the_security_workflows_exist() -> None:
     names = {path.name for path in WORKFLOWS}
 
-    assert {"ci.yml", "codeql.yml", "secret-scan.yml", "dependency-review.yml"} <= names
-    assert "container.yml" in names
+    assert {
+        "ci.yml",
+        "codeql.yml",
+        "secret-scan.yml",
+        "dependency-review.yml",
+        "container.yml",
+    } <= names
 
 
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
