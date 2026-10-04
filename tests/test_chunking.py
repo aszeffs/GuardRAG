@@ -11,7 +11,7 @@ from datetime import date
 import pytest
 
 from guardrag.chunking import chunk_document
-from guardrag.domain import Section, SourceDocument
+from guardrag.domain import Passage, Section, SourceDocument
 
 _TAGGED_WORD = re.compile(r"s(\d+)w(\d+)")
 
@@ -42,7 +42,12 @@ def tagged_words(text: str) -> list[tuple[int, int]]:
     return [(int(s), int(w)) for s, w in _TAGGED_WORD.findall(text)]
 
 
-def _implemented() -> bool:
+def section_of(passage: Passage) -> int:
+    """Index of the section a Passage's first word came from."""
+    return tagged_words(passage.text)[0][0]
+
+
+def _chunk_document_implemented() -> bool:
     try:
         chunk_document(make_doc(Section("h", "x")), count_words, max_tokens=10, overlap_tokens=2)
     except NotImplementedError:
@@ -50,7 +55,9 @@ def _implemented() -> bool:
     return True
 
 
-pytestmark = pytest.mark.skipif(not _implemented(), reason="chunk_document not implemented yet")
+pytestmark = pytest.mark.skipif(
+    not _chunk_document_implemented(), reason="chunk_document not implemented yet"
+)
 
 LONG_DOC = make_doc(
     Section("1. Issuance of TIN", section_text(0, 130), page=3),
@@ -58,17 +65,19 @@ LONG_DOC = make_doc(
     Section(None, section_text(2, 75), page=4),
     Section("Section 4. Coverage", section_text(3, 41)),
 )
-MAX, OVERLAP = 20, 5
+MAX_TOKENS, OVERLAP_TOKENS = 20, 5
 
 
 @pytest.fixture
 def passages():
-    return chunk_document(LONG_DOC, count_words, max_tokens=MAX, overlap_tokens=OVERLAP)
+    return chunk_document(
+        LONG_DOC, count_words, max_tokens=MAX_TOKENS, overlap_tokens=OVERLAP_TOKENS
+    )
 
 
 def test_every_passage_fits_max_tokens(passages) -> None:
     assert passages
-    assert all(count_words(p.text) <= MAX for p in passages)
+    assert all(count_words(p.text) <= MAX_TOKENS for p in passages)
 
 
 def test_ordinals_are_contiguous_from_zero(passages) -> None:
@@ -82,7 +91,7 @@ def test_no_passage_crosses_a_section(passages) -> None:
 
 def test_heading_and_page_carried(passages) -> None:
     for p in passages:
-        source = LONG_DOC.sections[tagged_words(p.text)[0][0]]
+        source = LONG_DOC.sections[section_of(p)]
         assert p.section == source.heading
         assert p.page == source.page
 
@@ -102,7 +111,7 @@ def test_short_section_becomes_one_passage(passages) -> None:
 def test_consecutive_passages_in_a_section_overlap(passages) -> None:
     pairs = 0
     for prev, nxt in zip(passages, passages[1:], strict=False):
-        if tagged_words(prev.text)[0][0] != tagged_words(nxt.text)[0][0]:
+        if section_of(prev) != section_of(nxt):
             continue
         pairs += 1
         shared = set(tagged_words(prev.text)) & set(tagged_words(nxt.text))
@@ -110,7 +119,7 @@ def test_consecutive_passages_in_a_section_overlap(passages) -> None:
     assert pairs > 0
 
 
-@pytest.mark.parametrize("overlap", [MAX, MAX + 1])
+@pytest.mark.parametrize("overlap", [MAX_TOKENS, MAX_TOKENS + 1])
 def test_overlap_not_below_max_tokens_raises(overlap: int) -> None:
     with pytest.raises(ValueError):
-        chunk_document(LONG_DOC, count_words, max_tokens=MAX, overlap_tokens=overlap)
+        chunk_document(LONG_DOC, count_words, max_tokens=MAX_TOKENS, overlap_tokens=overlap)

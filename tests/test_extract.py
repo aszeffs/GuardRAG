@@ -93,11 +93,11 @@ def test_charter_pdf_picks_up_service_titles(tmp_path: Path) -> None:
 
     by_heading = {s.heading: s for s in sections}
     tin = by_heading["1. Issuance of Taxpayer Identification Number (TIN)"]
-    cor = by_heading["2. Request for Certificate of Registration"]
+    registration = by_heading["2. Request for Certificate of Registration"]
     assert "BIR Form 1902" in tin.text
-    assert "Classification: Complex" in cor.text
-    assert "BIR Form 1902" not in cor.text
-    assert tin.page == cor.page == 1
+    assert "Classification: Complex" in registration.text
+    assert "BIR Form 1902" not in registration.text
+    assert tin.page == registration.page == 1
 
 
 def _make_pdf(lines: list[str]) -> bytes:
