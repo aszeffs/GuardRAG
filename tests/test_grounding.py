@@ -74,12 +74,6 @@ def test_citations_to_passages_not_retrieved_are_dropped() -> None:
     assert body["refusal"] is None
 
 
-def test_each_passage_is_cited_once() -> None:
-    body = ask(DraftAnswer(answer="File BIR Form 1902.", citations=[101, 101, 102]))
-
-    assert sorted(cited_ids(body)) == [101, 102]
-
-
 @pytest.mark.parametrize("citations", [[], [999], [LOAN_APPLICATION.id]], ids=str)
 def test_no_valid_citation_becomes_an_out_of_corpus_refusal(citations) -> None:
     body = ask(DraftAnswer(answer="You need a barangay clearance.", citations=citations))

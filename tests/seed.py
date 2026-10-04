@@ -9,6 +9,7 @@ from datetime import date
 
 import psycopg
 
+from guardrag.domain import DocumentKind
 from guardrag.embedder import Embedder
 from guardrag.retrieval import RetrievedPassage
 
@@ -19,7 +20,7 @@ class SeedDocument:
     url: str
     title: str
     agency: str
-    kind: str
+    kind: DocumentKind
     fetched_at: date
     effective_date: date | None = None
 
