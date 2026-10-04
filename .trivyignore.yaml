@@ -29,71 +29,65 @@ vulnerabilities:
   - id: CVE-2026-76642
     statement: >-
       util-linux 2.41.5-0+deb13u1 (bsdutils, libblkid1, libmount1, libuuid1,
-      login, mount and friends) in the python:3.12-slim base. These are
-      Essential packages that cannot be removed from a Debian image. Debian 13
-      has published no fixed build, so neither the base image nor the apt-get
-      upgrade in the Dockerfile can take one. Drop this entry once a fix
-      lands; the weekly rescan will show it.
+      login, mount and related packages) in the python:3.12-slim base, which
+      is Essential in Debian. Debian 13 has published no fixed build, so
+      neither the base image nor the apt-get upgrade in the Dockerfile can
+      take one. Drop this entry once a fixed build is published.
     expired_at: 2026-11-30
   - id: CVE-2026-78408
     statement: >-
       util-linux 2.41.5-0+deb13u1 (bsdutils, libblkid1, libmount1, libuuid1,
-      login, mount and friends) in the python:3.12-slim base. These are
-      Essential packages that cannot be removed from a Debian image. Debian 13
-      has published no fixed build, so neither the base image nor the apt-get
-      upgrade in the Dockerfile can take one. Drop this entry once a fix
-      lands; the weekly rescan will show it.
+      login, mount and related packages) in the python:3.12-slim base, which
+      is Essential in Debian. Debian 13 has published no fixed build, so
+      neither the base image nor the apt-get upgrade in the Dockerfile can
+      take one. Drop this entry once a fixed build is published.
     expired_at: 2026-11-30
   - id: CVE-2026-78409
     statement: >-
       util-linux 2.41.5-0+deb13u1 (bsdutils, libblkid1, libmount1, libuuid1,
-      login, mount and friends) in the python:3.12-slim base. These are
-      Essential packages that cannot be removed from a Debian image. Debian 13
-      has published no fixed build, so neither the base image nor the apt-get
-      upgrade in the Dockerfile can take one. Drop this entry once a fix
-      lands; the weekly rescan will show it.
+      login, mount and related packages) in the python:3.12-slim base, which
+      is Essential in Debian. Debian 13 has published no fixed build, so
+      neither the base image nor the apt-get upgrade in the Dockerfile can
+      take one. Drop this entry once a fixed build is published.
     expired_at: 2026-11-30
   - id: CVE-2026-78410
     statement: >-
       util-linux 2.41.5-0+deb13u1 (bsdutils, libblkid1, libmount1, libuuid1,
-      login, mount and friends) in the python:3.12-slim base. These are
-      Essential packages that cannot be removed from a Debian image. Debian 13
-      has published no fixed build, so neither the base image nor the apt-get
-      upgrade in the Dockerfile can take one. Drop this entry once a fix
-      lands; the weekly rescan will show it.
+      login, mount and related packages) in the python:3.12-slim base, which
+      is Essential in Debian. Debian 13 has published no fixed build, so
+      neither the base image nor the apt-get upgrade in the Dockerfile can
+      take one. Drop this entry once a fixed build is published.
     expired_at: 2026-11-30
   - id: CVE-2025-69720
     statement: >-
       ncurses 6.5+20250216-2 (libncursesw6, libtinfo6, ncurses-base, ncurses-
-      bin) in the python:3.12-slim base, needed by the interpreter's readline
-      and Essential in Debian. Debian 13 has published no fixed build, so
-      neither the base image nor the apt-get upgrade in the Dockerfile can
-      take one. Drop this entry once a fix lands; the weekly rescan will show
-      it.
+      bin) in the python:3.12-slim base. Debian 13 has published no fixed
+      build, so neither the base image nor the apt-get upgrade in the
+      Dockerfile can take one. Drop this entry once a fixed build is
+      published.
     expired_at: 2026-11-30
   - id: CVE-2026-16742
     statement: >-
-      libsystemd0 and libudev1 257.13-1~deb13u1 in the python:3.12-slim base,
-      pulled in by util-linux; the API never talks to systemd or udev. Debian
-      13 has published no fixed build, so neither the base image nor the apt-
-      get upgrade in the Dockerfile can take one. Drop this entry once a fix
-      lands; the weekly rescan will show it.
+      libsystemd0 and libudev1 257.13-1~deb13u1 in the python:3.12-slim base.
+      The API never talks to systemd or udev. Debian 13 has published no fixed
+      build, so neither the base image nor the apt-get upgrade in the
+      Dockerfile can take one. Drop this entry once a fixed build is
+      published.
     expired_at: 2026-11-30
   - id: CVE-2026-54369
     statement: >-
-      libacl1 2.3.2-2+b1 in the python:3.12-slim base, a dependency of
-      coreutils, which is Essential in Debian. Debian 13 has published no
-      fixed build, so neither the base image nor the apt-get upgrade in the
-      Dockerfile can take one. Drop this entry once a fix lands; the weekly
-      rescan will show it.
+      libacl1 2.3.2-2+b1 in the python:3.12-slim base. Debian 13 has published
+      no fixed build, so neither the base image nor the apt-get upgrade in the
+      Dockerfile can take one. Drop this entry once a fixed build is
+      published.
     expired_at: 2026-11-30
   - id: CVE-2026-9538
     statement: >-
-      perl-base 5.40.1-6+deb13u1 in the python:3.12-slim base, Essential in
-      Debian; Debian has marked the fix as deferred. Debian 13 has published
-      no fixed build, so neither the base image nor the apt-get upgrade in the
-      Dockerfile can take one. Drop this entry once a fix lands; the weekly
-      rescan will show it.
+      perl-base 5.40.1-6+deb13u1 in the python:3.12-slim base, which is
+      Essential in Debian. Debian has marked the fix as deferred. Debian 13
+      has published no fixed build, so neither the base image nor the apt-get
+      upgrade in the Dockerfile can take one. Drop this entry once a fixed
+      build is published.
     expired_at: 2026-11-30
 
 misconfigurations: []
