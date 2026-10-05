@@ -105,7 +105,7 @@ def test_production_app_wires_groq_and_the_configured_retriever() -> None:
 
     assert isinstance(app.state.llm, GroqLLM)
     assert app.state.llm.api_key == "gsk_test"
-    assert app.state.llm.model == ANSWER_MODEL == "llama-3.3-70b-versatile"
+    assert app.state.llm.model == ANSWER_MODEL == "openai/gpt-oss-120b"
     assert isinstance(app.state.retriever, HybridRetriever)
 
 

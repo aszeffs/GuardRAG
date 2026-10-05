@@ -8,7 +8,7 @@ from guardrag.answer import DraftAnswer
 from guardrag.prompt import build_messages, parse_draft
 from guardrag.retrieval import RetrievedPassage
 
-ANSWER_MODEL = "llama-3.3-70b-versatile"
+ANSWER_MODEL = "openai/gpt-oss-120b"
 
 
 class LLM(Protocol):
