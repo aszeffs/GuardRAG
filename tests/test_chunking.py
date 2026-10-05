@@ -1,8 +1,7 @@
 """Acceptance tests for chunk_document (seam 3 in issue #1).
 
-Skipped while chunk_document raises NotImplementedError. Tokens are counted as whitespace-separated
-words, and every word in a section is tagged with that section's index ("s1w7") so a test can tell
-which section a Passage's text came from.
+Most tests count tokens as whitespace-separated words, and every word in a section is tagged with
+that section's index ("s1w7") so a test can tell which section a Passage's text came from.
 """
 
 import re
@@ -18,6 +17,10 @@ _TAGGED_WORD = re.compile(r"s(\d+)w(\d+)")
 
 def count_words(text: str) -> int:
     return len(text.split())
+
+
+def count_chars(text: str) -> int:
+    return len(text)
 
 
 def section_text(index: int, n_words: int) -> str:
@@ -42,22 +45,18 @@ def tagged_words(text: str) -> list[tuple[int, int]]:
     return [(int(s), int(w)) for s, w in _TAGGED_WORD.findall(text)]
 
 
+def _span(text: str, passages: list[Passage], i: int) -> tuple[int, int]:
+    """Where Passage i sits in text, searching after the start of Passage i - 1."""
+    after = _span(text, passages, i - 1)[0] + 1 if i else 0
+    start = text.find(passages[i].text, after)
+    assert start >= 0, f"Passage is not verbatim section text: {passages[i].text!r}"
+    return start, start + len(passages[i].text)
+
+
 def section_of(passage: Passage) -> int:
     """Index of the section a Passage's first word came from."""
     return tagged_words(passage.text)[0][0]
 
-
-def _chunk_document_implemented() -> bool:
-    try:
-        chunk_document(make_doc(Section("h", "x")), count_words, max_tokens=10, overlap_tokens=2)
-    except NotImplementedError:
-        return False
-    return True
-
-
-pytestmark = pytest.mark.skipif(
-    not _chunk_document_implemented(), reason="chunk_document not implemented yet"
-)
 
 LONG_DOC = make_doc(
     Section("1. Issuance of TIN", section_text(0, 130), page=3),
@@ -123,3 +122,39 @@ def test_consecutive_passages_in_a_section_overlap(passages) -> None:
 def test_overlap_not_below_max_tokens_raises(overlap: int) -> None:
     with pytest.raises(ValueError):
         chunk_document(LONG_DOC, count_words, max_tokens=MAX_TOKENS, overlap_tokens=overlap)
+
+
+def test_word_longer_than_max_tokens_is_split_without_loss() -> None:
+    # A token-dense run with no whitespace (a long URL, a PDF table squashed into one string).
+    path = "-".join(str(i) for i in range(30))  # no repeated run, so each Passage is findable
+    text = f"See https://example.gov.ph/{path} for details."
+    doc = make_doc(Section("Links", text))
+
+    passages = chunk_document(doc, count_chars, max_tokens=20, overlap_tokens=5)
+
+    assert all(count_chars(p.text) <= 20 for p in passages)
+    covered: set[int] = set()
+    for i in range(len(passages)):
+        covered.update(range(*_span(text, passages, i)))
+    assert {i for i, ch in enumerate(text) if not ch.isspace()} <= covered
+
+
+def test_blank_sections_produce_no_passages() -> None:
+    doc = make_doc(Section("Empty", "  \n "), Section("Full", section_text(0, 3)))
+
+    passages = chunk_document(doc, count_words, max_tokens=20, overlap_tokens=5)
+
+    assert [p.section for p in passages] == ["Full"]
+    assert passages[0].ordinal == 0
+
+
+def test_each_passage_reaches_further_than_the_last() -> None:
+    # A long unbroken run right after the overlap tail cannot fit beside it.
+    path = "-".join(str(i) for i in range(15))
+    text = f"w1 w2 w3 w4 w5 w6 w7 w8 w9 {path}"
+    doc = make_doc(Section("Links", text))
+
+    passages = chunk_document(doc, count_chars, max_tokens=20, overlap_tokens=8)
+
+    ends = [_span(text, passages, i)[1] for i in range(len(passages))]
+    assert ends == sorted(set(ends)), [p.text for p in passages]

@@ -12,6 +12,22 @@ A secure RAG assistant over public Philippine government service documents (BIR,
 - Red-team: promptfoo suite (prompt injection, jailbreak, PII, off-topic)
 - GitHub Actions: eval and red-team gates, plus CodeQL, Gitleaks, Trivy, SBOM, signed images
 
+## Run
+
+```sh
+docker compose up -d --build
+docker compose run --rm api python -m guardrag.ingest
+curl 127.0.0.1:8000/health
+```
+
+The ingest downloads the 35 documents in `guardrag/ingest/sources.yaml` into `data/raw/` once, then extracts, chunks, embeds and stores them. Re-running it skips every document whose content hash is unchanged (`--refresh` re-downloads). `/health` reports the Passage count.
+
+### Chunking
+
+Passages are capped at 126 tokens of the embedder's own tokenizer: its 128-token window minus `[CLS]` and `[SEP]` ([ADR 0004](docs/adr/0004-small-passages-for-multilingual-embedder.md)). A Passage never crosses a section, so it always has one heading and page to cite. Within a section, a Passage ends at the last sentence or line end in its second half when there is one, so it is rarely cut mid-sentence.
+
+Consecutive Passages in a section overlap by up to **20 tokens**, about 15% of a Passage. That is roughly one requirement line or one clause in a Citizen's Charter table ("Valid ID (1 original, 1 photocopy)"), so an item split at a boundary still appears whole in one Passage and can be retrieved and cited intact. More overlap would duplicate text across the top-5 results and inflate the index for little gain. With such small Passages, every overlapping token takes room from new text. On the Corpus as of October 2026, this gives 5,950 Passages with a median of 118 tokens.
+
 ## Tests
 
 ```sh
