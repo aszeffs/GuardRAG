@@ -1,8 +1,8 @@
 """Acceptance tests for retrieval (seam 2 in issue #1): `Retriever.search` against the seeded test
 database (tests/seed.py) with the real embedder.
 
-Vector tests are pending #5, keyword and hybrid tests pending #6; each is skipped while its
-retriever raises NotImplementedError. The queries were checked against the real embedder: for
+Keyword and hybrid tests are pending #6, skipped while their retrievers raise
+NotImplementedError. The queries were checked against the real embedder: for
 "BIR Form 1904" vector search ranks the Form 1902 Passage first, so keyword search has to find
 the exact term on its own.
 """
@@ -21,7 +21,9 @@ from seed import (
     retrieved,
 )
 
+from guardrag.db import connect
 from guardrag.retrieval import (
+    VECTOR_SEARCH_SQL,
     HybridRetriever,
     KeywordRetriever,
     Retriever,
@@ -62,7 +64,6 @@ def assert_ranked_best_first(results) -> None:
 
 
 @pytest.mark.db
-@pytest.mark.pending("#5")
 class TestVector:
     @pytest.mark.parametrize("query, expected", [FILIPINO_PARAPHRASE, ENGLISH_PARAPHRASE])
     def test_a_paraphrase_finds_the_matching_passage_first(self, vector, query, expected) -> None:
@@ -86,6 +87,16 @@ class TestVector:
 
         assert top.agency == "SSS"
         assert top.as_of == date(2026, 10, 1)
+
+    def test_search_can_use_the_hnsw_cosine_index(self, embedder, seeded_db_url) -> None:
+        """Six rows are cheaper to scan, so sequential scans are disabled to see whether the
+        planner can serve the query from the index at all."""
+        [query] = embedder.embed(["salary loan"])
+        with connect(seeded_db_url) as conn:
+            conn.execute("SET enable_seqscan = off")
+            plan = conn.execute("EXPLAIN " + VECTOR_SEARCH_SQL, {"query": query, "k": 3}).fetchall()
+
+        assert any("Index Scan using passages_embedding_idx" in line for (line,) in plan)
 
 
 # --- keyword (#6) -------------------------------------------------------------------------------
