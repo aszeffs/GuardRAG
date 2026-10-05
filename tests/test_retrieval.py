@@ -106,8 +106,28 @@ class TestKeyword:
         query, expected = EXACT_TERM
         assert ids(keyword.search(query, k=3))[0] == expected
 
-    def test_an_exact_peso_amount_is_found_first(self, keyword) -> None:
-        assert ids(keyword.search("P100", k=3)) == [CERTIFICATE_REPLACEMENT.id]
+    @pytest.mark.parametrize(
+        "query", ["₱100", "P100", "P 100", "PHP 100.00", "Php100", "100 pesos"]
+    )
+    def test_a_peso_amount_is_found_however_it_is_written(self, keyword, query) -> None:
+        """The seed writes it "₱100"."""
+        assert ids(keyword.search(query, k=3)) == [CERTIFICATE_REPLACEMENT.id]
+
+    @pytest.mark.parametrize(
+        "question, terms",
+        [
+            ("Paano mag-apply ng salary loan sa SSS?", "'appli' | 'salari' | 'loan' | 'sss'"),
+            ("Magkano ang fee para sa TIN?", "'fee' | 'tin'"),
+            ("₱1,500,000.00", "'p1500000'"),
+        ],
+    )
+    def test_the_search_terms_drop_filler_and_normalise_peso_amounts(
+        self, seeded_db_url, question, terms
+    ) -> None:
+        with connect(seeded_db_url) as conn:
+            [(query,)] = conn.execute("SELECT keyword_query(%s)::text", (question,)).fetchall()
+
+        assert query == terms
 
     def test_query_terms_are_or_combined(self, keyword) -> None:
         """No Passage holds every term; AND-ing them would find nothing."""
