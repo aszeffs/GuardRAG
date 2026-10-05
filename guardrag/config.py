@@ -1,9 +1,12 @@
+"""Settings. Imports nothing from guardrag, so any module can read config without a cycle."""
+
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from guardrag.llm import ANSWER_MODEL
-from guardrag.retrieval import RetrieverMode
+ANSWER_MODEL = "openai/gpt-oss-120b"
+RetrieverMode = Literal["vector", "keyword", "hybrid"]
 
 
 class Settings(BaseSettings):

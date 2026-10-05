@@ -5,10 +5,9 @@ from functools import cached_property
 from typing import Any, Protocol
 
 from guardrag.answer import DraftAnswer
+from guardrag.config import ANSWER_MODEL
 from guardrag.prompt import build_messages, parse_draft
 from guardrag.retrieval import RetrievedPassage
-
-ANSWER_MODEL = "openai/gpt-oss-120b"
 
 
 class LLM(Protocol):
