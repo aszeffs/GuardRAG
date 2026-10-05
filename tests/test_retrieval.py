@@ -1,10 +1,8 @@
 """Acceptance tests for retrieval (seam 2 in issue #1): `Retriever.search` against the seeded test
 database (tests/seed.py) with the real embedder.
 
-Keyword and hybrid tests are pending #6, skipped while their retrievers raise
-NotImplementedError. The queries were checked against the real embedder: for
-"BIR Form 1904" vector search ranks the Form 1902 Passage first, so keyword search has to find
-the exact term on its own.
+The queries were checked against the real embedder: for "BIR Form 1904" vector search ranks the
+Form 1902 Passage first, so keyword search has to find the exact term on its own.
 """
 
 from datetime import date
@@ -103,11 +101,13 @@ class TestVector:
 
 
 @pytest.mark.db
-@pytest.mark.pending("#6")
 class TestKeyword:
     def test_an_exact_form_number_is_found_first(self, keyword) -> None:
         query, expected = EXACT_TERM
         assert ids(keyword.search(query, k=3))[0] == expected
+
+    def test_an_exact_peso_amount_is_found_first(self, keyword) -> None:
+        assert ids(keyword.search("P100", k=3)) == [CERTIFICATE_REPLACEMENT.id]
 
     def test_query_terms_are_or_combined(self, keyword) -> None:
         """No Passage holds every term; AND-ing them would find nothing."""
@@ -134,7 +134,6 @@ class TestKeyword:
 # --- hybrid (#6) --------------------------------------------------------------------------------
 
 
-@pytest.mark.pending("#6")
 def test_rrf_favours_a_passage_both_lists_rank_well() -> None:
     """With k=60: ranked 2nd by both lists scores 2/62 ≈ 0.0323, beating 1st by one list
     (1/61 ≈ 0.0164)."""
@@ -149,7 +148,6 @@ def test_rrf_favours_a_passage_both_lists_rank_well() -> None:
     assert_ranked_best_first(results)
 
 
-@pytest.mark.pending("#6")
 def test_rrf_k_respected() -> None:
     a, b, c, d = (retrieved(p, 0.5) for p in PASSAGES[:4])
     hybrid = HybridRetriever(StaticRetriever([a, b]), StaticRetriever([c, d]))
@@ -158,7 +156,6 @@ def test_rrf_k_respected() -> None:
 
 
 @pytest.mark.db
-@pytest.mark.pending("#6")
 class TestHybrid:
     def test_an_exact_form_number_is_found(self, hybrid) -> None:
         """Vector ranks it 2nd and keyword 1st, so RRF ties it with the Form 1902 Passage."""
