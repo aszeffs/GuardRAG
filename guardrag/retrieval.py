@@ -5,13 +5,13 @@ Vector search is #5; keyword and hybrid are #6. See tests/test_retrieval.py.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Literal, Protocol
+from typing import Protocol
 
 from psycopg.rows import class_row
 
+from guardrag.config import RetrieverMode
+from guardrag.db import connect
 from guardrag.embedder import Embedder
-
-RetrieverMode = Literal["vector", "keyword", "hybrid"]
 
 # pgvector's default hnsw.ef_search: an HNSW scan yields at most this many rows.
 HNSW_EF_SEARCH_DEFAULT = 40
@@ -61,8 +61,6 @@ class VectorRetriever:
         self.db_url = db_url
 
     def search(self, query: str, k: int) -> list[RetrievedPassage]:
-        from guardrag.db import connect  # guardrag.config imports this module
-
         [embedding] = self.embedder.embed([query])
         with connect(self.db_url) as conn:
             ef_search = max(HNSW_EF_SEARCH_DEFAULT, k)
