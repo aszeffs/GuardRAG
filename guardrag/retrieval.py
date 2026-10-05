@@ -1,9 +1,7 @@
-"""Find the Passages most likely to answer a question.
+"""Find the Passages most likely to answer a question. See tests/test_retrieval.py."""
 
-Vector search is #5; keyword and hybrid are #6. See tests/test_retrieval.py.
-"""
-
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, replace
 from datetime import date
 from typing import Protocol
 
@@ -16,6 +14,10 @@ from guardrag.embedder import Embedder
 # pgvector's default hnsw.ef_search: an HNSW scan yields at most this many rows.
 HNSW_EF_SEARCH_DEFAULT = 40
 
+# Hybrid search fetches each ranking this deep (or `k`, if deeper) before fusing, so a Passage
+# just outside one list's top `k` can still win on the strength of both.
+HYBRID_POOL = 20
+
 # Ordering by the bare `<=>` distance with a LIMIT is what lets the planner use the HNSW
 # `vector_cosine_ops` index on passages.embedding. Score is cosine similarity.
 VECTOR_SEARCH_SQL = """
@@ -24,6 +26,22 @@ VECTOR_SEARCH_SQL = """
            1 - (p.embedding <=> %(query)s::vector) AS score
     FROM passages p JOIN documents d ON d.id = p.document_id
     ORDER BY p.embedding <=> %(query)s::vector
+    LIMIT %(k)s
+"""
+
+# plainto_tsquery AND-s the question's lexemes, which finds nothing for most natural-language
+# questions, so its `&` operators are swapped for `|`. The same 'english' configuration builds
+# passages.tsv. A question of only stop words gives an empty tsquery, which matches nothing.
+KEYWORD_SEARCH_SQL = """
+    WITH q AS (
+        SELECT replace(plainto_tsquery('english', %(query)s)::text, ' & ', ' | ')::tsquery AS query
+    )
+    SELECT p.id AS passage_id, p.text, p.section, p.page, d.title AS document_title, d.agency,
+           d.url, coalesce(d.effective_date, d.fetched_at) AS as_of,
+           ts_rank_cd(p.tsv, q.query) AS score
+    FROM q, passages p JOIN documents d ON d.id = p.document_id
+    WHERE p.tsv @@ q.query
+    ORDER BY score DESC, p.id
     LIMIT %(k)s
 """
 
@@ -76,11 +94,16 @@ class KeywordRetriever:
         self.db_url = db_url
 
     def search(self, query: str, k: int) -> list[RetrievedPassage]:
-        raise NotImplementedError
+        with connect(self.db_url) as conn:
+            with conn.cursor(row_factory=class_row(RetrievedPassage)) as cur:
+                return cur.execute(KEYWORD_SEARCH_SQL, {"query": query, "k": k}).fetchall()
 
 
 class HybridRetriever:
-    """Reciprocal Rank Fusion of two rankings: score(p) = sum of 1 / (rrf_k + rank(p))."""
+    """Reciprocal Rank Fusion of two rankings: score(p) = sum of 1 / (rrf_k + rank(p)).
+
+    Ties keep first-seen order, vector before keyword.
+    """
 
     def __init__(self, vector: Retriever, keyword: Retriever, rrf_k: int = 60) -> None:
         self.vector = vector
@@ -88,7 +111,15 @@ class HybridRetriever:
         self.rrf_k = rrf_k
 
     def search(self, query: str, k: int) -> list[RetrievedPassage]:
-        raise NotImplementedError
+        depth = max(k, HYBRID_POOL)
+        passages: dict[int, RetrievedPassage] = {}
+        scores: defaultdict[int, float] = defaultdict(float)
+        for ranking in (self.vector.search(query, depth), self.keyword.search(query, depth)):
+            for rank, passage in enumerate(ranking, start=1):
+                passages.setdefault(passage.passage_id, passage)
+                scores[passage.passage_id] += 1 / (self.rrf_k + rank)
+        best = sorted(scores, key=scores.__getitem__, reverse=True)[:k]
+        return [replace(passages[passage_id], score=scores[passage_id]) for passage_id in best]
 
 
 def build_retriever(
