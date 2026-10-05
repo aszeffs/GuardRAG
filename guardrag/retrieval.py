@@ -1,15 +1,31 @@
 """Find the Passages most likely to answer a question.
 
-Owned by the author: see issues #5 (vector) and #6 (keyword, hybrid) and tests/test_retrieval.py.
+Vector search is #5; keyword and hybrid are #6. See tests/test_retrieval.py.
 """
 
 from dataclasses import dataclass
 from datetime import date
 from typing import Literal, Protocol
 
+from psycopg.rows import class_row
+
 from guardrag.embedder import Embedder
 
 RetrieverMode = Literal["vector", "keyword", "hybrid"]
+
+# pgvector's default hnsw.ef_search: an HNSW scan yields at most this many rows.
+HNSW_EF_SEARCH_DEFAULT = 40
+
+# Ordering by the bare `<=>` distance with a LIMIT is what lets the planner use the HNSW
+# `vector_cosine_ops` index on passages.embedding. Score is cosine similarity.
+VECTOR_SEARCH_SQL = """
+    SELECT p.id AS passage_id, p.text, p.section, p.page, d.title AS document_title, d.agency,
+           d.url, coalesce(d.effective_date, d.fetched_at) AS as_of,
+           1 - (p.embedding <=> %(query)s::vector) AS score
+    FROM passages p JOIN documents d ON d.id = p.document_id
+    ORDER BY p.embedding <=> %(query)s::vector
+    LIMIT %(k)s
+"""
 
 
 @dataclass(frozen=True)
@@ -45,7 +61,14 @@ class VectorRetriever:
         self.db_url = db_url
 
     def search(self, query: str, k: int) -> list[RetrievedPassage]:
-        raise NotImplementedError
+        from guardrag.db import connect  # guardrag.config imports this module
+
+        [embedding] = self.embedder.embed([query])
+        with connect(self.db_url) as conn:
+            ef_search = max(HNSW_EF_SEARCH_DEFAULT, k)
+            conn.execute("SELECT set_config('hnsw.ef_search', %s, true)", (str(ef_search),))
+            with conn.cursor(row_factory=class_row(RetrievedPassage)) as cur:
+                return cur.execute(VECTOR_SEARCH_SQL, {"query": embedding, "k": k}).fetchall()
 
 
 class KeywordRetriever:
