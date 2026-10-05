@@ -84,7 +84,7 @@ CERTIFICATE_REPLACEMENT = SeedPassage(
     "Replacement of Lost Certificate of Registration",
     18,
     "To replace a lost Certificate of Registration, submit an affidavit of loss and pay the "
-    "certification fee of P100 at an authorized agent bank. The replacement is released within "
+    "certification fee of ₱100 at an authorized agent bank. The replacement is released within "
     "three working days.",
 )
 LOAN_ELIGIBILITY = SeedPassage(

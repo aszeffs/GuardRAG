@@ -29,13 +29,10 @@ VECTOR_SEARCH_SQL = """
     LIMIT %(k)s
 """
 
-# plainto_tsquery AND-s the question's lexemes, which finds nothing for most natural-language
-# questions, so its `&` operators are swapped for `|`. The same 'english' configuration builds
-# passages.tsv. A question of only stop words gives an empty tsquery, which matches nothing.
+# keyword_query (db/init.sql) OR-combines the question's terms, minus Filipino filler, with peso
+# amounts written the way passages.tsv stores them.
 KEYWORD_SEARCH_SQL = """
-    WITH q AS (
-        SELECT replace(plainto_tsquery('english', %(query)s)::text, ' & ', ' | ')::tsquery AS query
-    )
+    WITH q AS (SELECT keyword_query(%(query)s) AS query)
     SELECT p.id AS passage_id, p.text, p.section, p.page, d.title AS document_title, d.agency,
            d.url, coalesce(d.effective_date, d.fetched_at) AS as_of,
            ts_rank_cd(p.tsv, q.query) AS score
