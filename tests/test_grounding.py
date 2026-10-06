@@ -155,3 +155,11 @@ def test_every_answer_is_cited_and_every_refusal_has_no_confidence(draft) -> Non
         assert body["refusal"] in ("out_of_corpus", "out_of_scope")
         assert body["confidence"] == "none"
         assert body["citations"] == []
+
+
+@pytest.mark.parametrize("answer", ["", "  \n"], ids=repr)
+def test_a_cited_but_blank_answer_is_an_out_of_corpus_refusal(answer) -> None:
+    body = ask(DraftAnswer(answer=answer, citations=[101]))
+
+    assert body["refusal"] == "out_of_corpus"
+    assert body["citations"] == []

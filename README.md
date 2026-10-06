@@ -30,7 +30,7 @@ Consecutive Passages in a section overlap by up to **20 tokens**, about 15% of a
 
 ### Grounding and Confidence
 
-Grounding is checked in code after the model replies, not left to the prompt ([ADR 0002](docs/adr/0002-grounding-enforced-in-code.md)). A Citation survives only if it names a Passage retrieved for this request; the rest are dropped, and a Passage cited twice is listed once. If the model marks the request out of scope, the reply is an `out_of_scope` Refusal with a fixed, polite decline. If no Citation survives, including when nothing was retrieved or the model's reply was malformed, the reply is an `out_of_corpus` Refusal: "I don't know", naming the Agency of the best retrieved Passage as the one most likely to help. Every Refusal has `confidence: none` and no Citations, and every other reply has at least one Citation.
+Grounding is checked in code after the model replies, not left to the prompt ([ADR 0002](docs/adr/0002-grounding-enforced-in-code.md)). A Citation survives only if it names a Passage retrieved for this request; the rest are dropped, and a Passage cited twice is listed once. If the model marks the request out of scope, the reply is an `out_of_scope` Refusal with a fixed, polite decline. If no Citation survives or the answer is blank, including when nothing was retrieved or the model's reply was malformed, the reply is an `out_of_corpus` Refusal: "I don't know", naming the Agency of the best retrieved Passage as the one most likely to help. Every Refusal has `confidence: none` and no Citations, and every other reply has at least one Citation.
 
 A cited answer's Confidence comes from the evidence, never from the model:
 
