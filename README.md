@@ -50,13 +50,15 @@ python -m guardrag.evals.retrieval --gate hybrid --min-recall 0.65
 
 recall@5 is the share of a question's expected sections found in the top 5, averaged over the answerable questions. MRR is 1 / rank of the first Passage from an expected section, or 0 if none is in the top 5. Before scoring, the command checks that every expected section exists in the Corpus and stops if one doesn't, so a typo or an extraction change can't pass as a retrieval miss. On the Corpus as of October 2026 ([results](evals/results/retrieval.json)):
 
-| Retriever | recall@5 | MRR | English recall@5 | Filipino recall@5 | Taglish recall@5 |
+| Retriever | recall@5 | MRR | English (34) | Filipino (5) | Taglish (4) |
 |---|---|---|---|---|---|
-| vector | 0.570 | 0.412 | 0.632 | 0.250 | 0.400 |
-| keyword | 0.558 | 0.371 | 0.618 | 0.250 | 0.400 |
-| **hybrid (RRF)** | **0.721** | **0.494** | 0.794 | 0.250 | 0.600 |
+| vector | 0.570 | 0.412 | 0.632 / 0.433 | 0.400 / 0.400 | 0.250 / 0.250 |
+| keyword | 0.558 | 0.371 | 0.618 / 0.396 | 0.200 / 0.200 | 0.500 / 0.375 |
+| **hybrid (RRF)** | **0.721** | **0.494** | 0.794 / 0.544 | 0.400 / 0.250 | 0.500 / 0.375 |
 
-Hybrid search beats either retriever alone, and it lifts recall@5 over vector-only by 15 points. Questions in Filipino are still the weak spot: the Corpus is English, and the 384-dimension multilingual embedder only partly bridges the gap. With only 4 Filipino and 5 Taglish questions, those columns are indicative only.
+The language columns show recall@5 / MRR over the answerable questions in that language. Hybrid search beats either retriever alone, and it lifts recall@5 over vector-only by 15 points. Filipino and Taglish questions are still the weak spot: the Corpus is English, and the 384-dimension multilingual embedder only partly bridges the gap. With only 5 Filipino and 4 Taglish answerable questions, those columns are indicative only.
+
+A hit means a Passage came from the right section, not that it contains the answer. Most Service Document sections are short, but some are large. For example, RA 9994 "Section 3" has 72 Passages, and only one of them states the 20% discount. A few documents have no usable sections at all (the PhilHealth benefits page, and the Pasig PDAO and PESO charters), so for those any Passage of the document counts. These scores are therefore an upper bound on Passage-level recall. The answer evals (#12) measure whether the cited Passage actually supports the answer.
 
 Every PR runs the eval in CI (`retrieval-eval`) on a freshly seeded Corpus, at no LLM cost. Raw downloads and the embedder are cached between runs. The job fails if hybrid recall@5 falls below **0.65**, about three questions below today's score.
 

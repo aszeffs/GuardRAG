@@ -58,7 +58,7 @@ The language a reply is written in, which matches the language of the question (
 ### Evaluation
 
 **Golden Set**:
-The curated list of test questions, each tagged as answerable (with the passages that should be retrieved) or as an Out-of-Corpus Question, used to measure retrieval and answers.
+The curated list of test questions, each tagged as answerable (with the document sections whose passages should be retrieved, so the tags survive re-chunking) or as an Out-of-Corpus Question, used to measure retrieval and answers.
 _Avoid_: test set, benchmark, ground truth
 
 **Red-Team Attack**:
