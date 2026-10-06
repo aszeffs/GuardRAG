@@ -2,13 +2,13 @@
 
 Scores each Retriever on the answerable questions with recall@k (the share of a question's Targets
 found in the top k, averaged) and MRR (1 / rank of the first Passage meeting any Target, 0 if none
-is in the top k). Out-of-Corpus questions have nothing to retrieve, so they are not scored here.
+is in the top k). Out-of-Corpus Questions have nothing to retrieve, so they are not scored here.
 """
 
 import argparse
 import json
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -17,7 +17,7 @@ from typing import get_args
 from guardrag.config import RetrieverMode, get_settings
 from guardrag.db import connect
 from guardrag.embedder import FastEmbedEmbedder
-from guardrag.evals.golden import GoldenQuestion, load_golden_set
+from guardrag.evals.golden import GoldenQuestion, Location, load_golden_set
 from guardrag.retrieval import Retriever, build_retriever
 
 RESULTS_PATH = Path(__file__).parents[2] / "evals" / "results" / "retrieval.json"
@@ -31,6 +31,12 @@ class Scores:
 
 
 @dataclass(frozen=True)
+class QuestionScore:
+    recall: float
+    reciprocal_rank: float
+
+
+@dataclass(frozen=True)
 class RetrieverScores:
     overall: Scores
     by_language: dict[str, Scores]
@@ -39,23 +45,23 @@ class RetrieverScores:
 
 
 def evaluate(questions: Sequence[GoldenQuestion], retriever: Retriever, k: int) -> RetrieverScores:
-    per_language: defaultdict[str, list[tuple[float, float]]] = defaultdict(list)
+    per_language: defaultdict[str, list[QuestionScore]] = defaultdict(list)
     misses = []
     for q in questions:
         if q.kind != "answerable":
             continue
         ranked = retriever.search(q.question, k)[:k]
-        found = [any(t.met_by(p) for p in ranked) for t in q.expected]
-        first = next(
-            (rank for rank, p in enumerate(ranked, 1) if any(t.met_by(p) for t in q.expected)),
-            None,
-        )
-        per_language[q.language].append((sum(found) / len(found), 1 / first if first else 0.0))
-        if not all(found):
+        # hits[rank][i]: whether the Passage at that rank meets Target i.
+        hits = [[t.met_by(p) for t in q.expected] for p in ranked]
+        found = [any(column) for column in zip(*hits, strict=True)] if hits else []
+        first = next((rank for rank, row in enumerate(hits, 1) if any(row)), None)
+        recall = sum(found) / len(q.expected)
+        per_language[q.language].append(QuestionScore(recall, 1 / first if first else 0.0))
+        if recall < 1:
             misses.append(q.id)
     return RetrieverScores(
-        overall=_mean([pair for pairs in per_language.values() for pair in pairs]),
-        by_language={language: _mean(pairs) for language, pairs in sorted(per_language.items())},
+        overall=_average([s for scores in per_language.values() for s in scores]),
+        by_language={lang: _average(scores) for lang, scores in sorted(per_language.items())},
         misses=misses,
     )
 
@@ -64,16 +70,18 @@ def passes_gate(scores: RetrieverScores, min_recall: float) -> bool:
     return scores.overall.recall >= min_recall
 
 
-def _mean(pairs: list[tuple[float, float]]) -> Scores:
-    n = len(pairs)
+def _average(scores: list[QuestionScore]) -> Scores:
+    n = len(scores)
     return Scores(
         questions=n,
-        recall=sum(r for r, _ in pairs) / n if n else 0.0,
-        mrr=sum(rr for _, rr in pairs) / n if n else 0.0,
+        recall=sum(s.recall for s in scores) / n if n else 0.0,
+        mrr=sum(s.reciprocal_rank for s in scores) / n if n else 0.0,
     )
 
 
-def missing_locations(questions: Sequence[GoldenQuestion], db_url: str | None = None) -> set:
+def missing_locations(
+    questions: Sequence[GoldenQuestion], db_url: str | None = None
+) -> set[Location]:
     """Locations no Passage in the Corpus holds: a typo, or an extraction change to fix first."""
     with connect(db_url) as conn:
         rows = conn.execute(
@@ -92,9 +100,7 @@ def missing_locations(questions: Sequence[GoldenQuestion], db_url: str | None = 
 
 
 def _report(questions: Sequence[GoldenQuestion], k: int, results: dict) -> dict:
-    languages = defaultdict(int)
-    for q in questions:
-        languages[q.language] += 1
+    languages = Counter(q.language for q in questions)
     return {
         "k": k,
         "golden_set": {

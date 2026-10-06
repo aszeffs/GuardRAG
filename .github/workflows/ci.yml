@@ -16,7 +16,7 @@ jobs:
       db:
         # Pinned by digest like every image here. Dependabot does not update
         # service images in workflows, so this is bumped by hand, together with
-        # the one in container.yml.
+        # the one in container.yml and the retrieval-eval job below.
         image: pgvector/pgvector:pg17@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
         env:
           POSTGRES_USER: guardrag
