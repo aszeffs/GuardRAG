@@ -12,10 +12,13 @@ from collections.abc import Callable
 from functools import cached_property
 from typing import Any, Protocol
 
+from guardrag.config import PROMPT_GUARD_MODEL
+
 logger = logging.getLogger(__name__)
 
 MAX_QUESTION_CHARS = 1000
-PROMPT_GUARD_MODEL = "meta-llama/llama-prompt-guard-2-86m"
+PROMPT_GUARD_THRESHOLD = 0.5  # Prompt Guard's score is the probability of an attack
+MAX_TRACKED_CLIENTS = 1000  # past this, the rate limiter forgets clients idle for a window
 
 
 def check_question(question: str) -> str:
@@ -40,7 +43,7 @@ class InjectionClassifier(Protocol):
         ...
 
 
-def is_injection(question: str, classifier: InjectionClassifier) -> bool:
+def screen_for_injection(question: str, classifier: InjectionClassifier) -> bool:
     """Heuristics first, then the classifier. A classifier failure fails open (ADR 0003)."""
     if looks_like_injection(question):
         return True
@@ -62,23 +65,28 @@ _IGNORE = (
     r"(?:ignore|i ?ignore|disregard|i ?disregard|forget|override|bypass|kalimutan|balewalain"
     r"|isantabi|(?:huwag|wag) (?:mo |mong |nyo |nyong )?(?:nang )?(?:pansinin|sundin))"
 )
-_ORDERS = r"(?:instructions?|prompts?|directives?|guidelines|utos|tagubilin|panuto|bilin)"
+# No "rules" or "guidelines": citizens ask whether an official can ignore those.
+_ORDERS = (
+    r"(?:instructions?|prompts?|directives?|commands?|utos|tagubilin|panuto|bilin"
+    r"|instruksi?yon)"
+)
 
 # Matched against _normalise(text): lowercase ASCII words separated by single spaces.
 _PATTERNS = [
     rf"\b{_IGNORE} (?:{_FILLER} ){{0,6}}{_ORDERS}\b",
+    r"\b(?:ignore|disregard|forget) (?:everything |all )?(?:what )?you (?:were|ve been) told\b",
     r"\b(?:system|developer|hidden) prompt\b",
     r"\b(?:repeat|reveal|print|output|leak|dump) (?:\w+ ){0,2}(?:instructions|prompt)\b",
-    r"\b(?:you|u) are now\b",
-    r"\bfrom now on,? you\b",
-    r"\bpretend (?:to be|you are|you re|that you)\b",
+    r"(?<!\bif )(?<!\bwhen )\b(?:you|u) are now\b",
+    r"\bfrom now on you\b",
+    r"\bpretend (?:you are|you re|that you)\b",
     r"\bact as (?:an? )?(?:unrestricted|unfiltered|jailbroken|evil|uncensored)\b",
     r"\b(?:developer|god|dan|jailbreak|unrestricted) mode\b",
     r"\bjailbr(?:eak|oken)\b",
     r"\bdo anything now\b",
-    r"\bmula ngayon,? ikaw\b",
-    r"\bikaw (?:ay )?(?:na )?ngayon\b",
-    r"\bmagpanggap ka\b",
+    r"\bmula ngayon ikaw\b",
+    r"\bikaw na ngayon\b",
+    r"\bmagpanggap ka(?:ng)? na\b",
     r"\bkunwari (?:ikaw|ka)\b",
 ]
 # Matched against the lowercased text as written: chat-template and role markers.
@@ -108,8 +116,13 @@ def _strip_format_chars(text: str) -> str:
     return "".join(c for c in text if unicodedata.category(c) != "Cf")
 
 
+# Cyrillic and Greek letters that look like Latin ones, which NFKC leaves alone.
+_LOOKALIKES = str.maketrans("асеорхуіјѕԁɡαεικνορτυχ", "aceopxyijsdgaeikvoptux")
+
+
 def _normalise(text: str) -> str:
-    """Strip accents and reduce everything but letters and digits to single spaces."""
+    """Fold lookalike letters and accents, and reduce all but letters and digits to spaces."""
+    text = text.translate(_LOOKALIKES)
     ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     return " ".join(re.findall(r"[a-z0-9]+", ascii_text))
 
@@ -121,12 +134,10 @@ class PromptGuard:
         self,
         api_key: str,
         model: str = PROMPT_GUARD_MODEL,
-        threshold: float = 0.5,
         client: Any = None,
     ) -> None:
         self.api_key = api_key
         self.model = model
-        self.threshold = threshold
         if client is not None:
             self._client = client
 
@@ -145,7 +156,7 @@ class PromptGuard:
         score = float(reply or "")  # ValueError on anything that isn't a number
         if math.isnan(score):
             raise ValueError(f"Prompt Guard returned {reply!r}")
-        return score >= self.threshold
+        return score >= PROMPT_GUARD_THRESHOLD
 
 
 class RateLimiter:
@@ -168,6 +179,8 @@ class RateLimiter:
         """
         with self._lock:
             now = self._clock()
+            if len(self._hits) > MAX_TRACKED_CLIENTS:
+                self._forget_idle_clients(now)
             hits = self._hits[client]
             while hits and hits[0] <= now - self.window_seconds:
                 hits.popleft()
@@ -175,3 +188,8 @@ class RateLimiter:
                 return False
             hits.append(now)
             return True
+
+    def _forget_idle_clients(self, now: float) -> None:
+        for client, hits in list(self._hits.items()):
+            if not hits or hits[-1] <= now - self.window_seconds:
+                del self._hits[client]

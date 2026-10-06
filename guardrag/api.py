@@ -5,7 +5,7 @@ from guardrag.config import Settings, get_settings
 from guardrag.db import connect
 from guardrag.embedder import FastEmbedEmbedder
 from guardrag.grounding import Grounder, ground, out_of_scope
-from guardrag.guards import InjectionClassifier, PromptGuard, RateLimiter, is_injection
+from guardrag.guards import InjectionClassifier, PromptGuard, RateLimiter, screen_for_injection
 from guardrag.llm import LLM, GroqLLM
 from guardrag.retrieval import Retriever, build_retriever
 
@@ -38,7 +38,7 @@ def create_app(
 
     @app.post("/ask", dependencies=[Depends(within_rate_limit)])
     def ask(request: AskRequest) -> AskResponse:
-        if is_injection(request.question, classifier):
+        if screen_for_injection(request.question, classifier):
             return out_of_scope()
         passages = retriever.search(request.question, k)
         draft = llm.draft(request.question, passages)
