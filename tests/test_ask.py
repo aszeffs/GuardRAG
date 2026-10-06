@@ -1,5 +1,5 @@
 """The `/ask` shell (seam 1 in issue #1): request and response shape, and how the dependencies
-are wired. Grounding is replaced here so these tests don't wait on #8; tests/test_grounding.py
+are wired. Grounding is replaced here so these tests check only the wiring; tests/test_grounding.py
 covers the real one."""
 
 from datetime import date

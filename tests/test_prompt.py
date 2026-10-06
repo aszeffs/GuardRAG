@@ -134,7 +134,6 @@ def test_other_groq_errors_are_not_swallowed() -> None:
         GroqLLM("gsk_test", client=client).draft(QUESTION, PASSAGES)
 
 
-@pytest.mark.pending("#7 and #8")
 def test_a_malformed_reply_is_an_out_of_corpus_refusal_not_an_error() -> None:
     app = create_app(
         retriever=StaticRetriever([retrieved(ONE_TIME_TAXPAYER, 0.8)]),

@@ -28,6 +28,17 @@ Passages are capped at 126 tokens of the embedder's own tokenizer: its 128-token
 
 Consecutive Passages in a section overlap by up to **20 tokens**, about 15% of a Passage. That is roughly one requirement line or one clause in a Citizen's Charter table ("Valid ID (1 original, 1 photocopy)"), so an item split at a boundary still appears whole in one Passage and can be retrieved and cited intact. More overlap would duplicate text across the top-5 results and inflate the index for little gain. With such small Passages, every overlapping token takes room from new text. On the Corpus as of October 2026, this gives 5,950 Passages with a median of 118 tokens.
 
+### Grounding and Confidence
+
+Grounding is checked in code after the model replies, not left to the prompt ([ADR 0002](docs/adr/0002-grounding-enforced-in-code.md)). A Citation survives only if it names a Passage retrieved for this request; the rest are dropped, and a Passage cited twice is listed once. If the model marks the request out of scope, the reply is an `out_of_scope` Refusal with a fixed, polite decline. If no Citation survives, including when nothing was retrieved or the model's reply was malformed, the reply is an `out_of_corpus` Refusal: "I don't know", naming the Agency of the best retrieved Passage as the one most likely to help. Every Refusal has `confidence: none` and no Citations, and every other reply has at least one Citation.
+
+A cited answer's Confidence comes from the evidence, never from the model:
+
+- **`high`**: the answer cites the top-ranked retrieved Passage, and none of the model's Citations had to be dropped.
+- **`low`**: anything else. Either the answer rests only on lower-ranked Passages, or the model also cited something it was never given, so part of the answer may be unsupported.
+
+The rules use rank rather than score because scores are comparable only within one retriever mode: cosine similarity, `ts_rank_cd` and RRF are on different scales.
+
 ## Tests
 
 ```sh

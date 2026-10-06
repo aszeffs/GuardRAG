@@ -1,7 +1,7 @@
 """Acceptance tests for grounding (#8), through `POST /ask` with the real `ground`.
 
 Each test scripts the draft the model returns and fixes what was retrieved, then checks the
-response a citizen gets. Skipped while `ground` raises NotImplementedError.
+response a citizen gets.
 """
 
 import pytest
@@ -17,8 +17,6 @@ from seed import (
 
 from guardrag.answer import DraftAnswer
 from guardrag.api import create_app
-
-pytestmark = pytest.mark.pending("#8")
 
 # What the retriever returns for a BIR question: best first. LOAN_APPLICATION is in the Corpus
 # but not among these, so a Citation to it was never given to the model.
@@ -121,6 +119,19 @@ def test_confidence_follows_the_evidence() -> None:
 
     assert strong["confidence"] == "high"
     assert weak["confidence"] == "low"
+
+
+def test_a_draft_that_cited_passages_it_was_not_given_is_low_confidence() -> None:
+    body = ask(DraftAnswer(answer="File BIR Form 1902.", citations=[101, 999]))
+
+    assert cited_ids(body) == [101]
+    assert body["confidence"] == "low"
+
+
+def test_a_passage_cited_twice_is_listed_once() -> None:
+    body = ask(DraftAnswer(answer="File BIR Form 1902.", citations=[101, 102, 101]))
+
+    assert cited_ids(body) == [101, 102]
 
 
 DRAFTS = [
