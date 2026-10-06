@@ -1,11 +1,11 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException, Request
 
 from guardrag.answer import AskRequest, AskResponse
 from guardrag.config import Settings, get_settings
 from guardrag.db import connect
 from guardrag.embedder import FastEmbedEmbedder
-from guardrag.grounding import Grounder, ground
-from guardrag.guards import InjectionClassifier, NoClassifier
+from guardrag.grounding import Grounder, ground, out_of_scope
+from guardrag.guards import InjectionClassifier, PromptGuard, RateLimiter, is_injection
 from guardrag.llm import LLM, GroqLLM
 from guardrag.retrieval import Retriever, build_retriever
 
@@ -16,16 +16,30 @@ def create_app(
     llm: LLM,
     classifier: InjectionClassifier,
     grounder: Grounder = ground,
+    rate_limiter: RateLimiter | None = None,
     k: int = 5,
 ) -> FastAPI:
-    """The GuardRAG API, built from its dependencies so tests can pass in fakes."""
+    """The GuardRAG API, built from its dependencies so tests can pass in fakes.
+
+    Without a `rate_limiter`, requests are not rate limited.
+    """
     app = FastAPI(title="GuardRAG")
     app.state.retriever = retriever
     app.state.llm = llm
-    app.state.classifier = classifier  # screening before retrieval lands with #10
+    app.state.classifier = classifier
+    app.state.rate_limiter = rate_limiter
 
-    @app.post("/ask")
+    def within_rate_limit(request: Request) -> None:
+        # Runs before the body is validated, so malformed requests count towards the limit too.
+        client = request.client.host if request.client else "unknown"
+        if rate_limiter is not None and not rate_limiter.allow(client):
+            retry_after = str(round(rate_limiter.window_seconds))
+            raise HTTPException(429, "Too many requests", headers={"Retry-After": retry_after})
+
+    @app.post("/ask", dependencies=[Depends(within_rate_limit)])
     def ask(request: AskRequest) -> AskResponse:
+        if is_injection(request.question, classifier):
+            return out_of_scope()
         passages = retriever.search(request.question, k)
         draft = llm.draft(request.question, passages)
         return grounder(draft, passages)
@@ -45,7 +59,8 @@ def create_production_app(settings: Settings | None = None) -> FastAPI:
     return create_app(
         retriever=build_retriever(settings.retriever, embedder),
         llm=GroqLLM(settings.groq_api_key, settings.answer_model),
-        classifier=NoClassifier(),
+        classifier=PromptGuard(settings.groq_api_key, settings.prompt_guard_model),
+        rate_limiter=RateLimiter(settings.rate_limit_requests, settings.rate_limit_window_seconds),
         k=settings.retrieval_k,
     )
 

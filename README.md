@@ -39,6 +39,17 @@ A cited answer's Confidence comes from the evidence, never from the model:
 
 The rules use rank rather than score because scores are comparable only within one retriever mode: cosine similarity, `ts_rank_cd` and RRF are on different scales.
 
+### Input guards
+
+Every question is screened before retrieval or any model call, in this order:
+
+1. **Rate limit.** Each client IP gets at most `RATE_LIMIT_REQUESTS` requests per `RATE_LIMIT_WINDOW_SECONDS` (20 per 60 by default). Over the limit, the reply is a 429 with `Retry-After`. The limiter is in memory, which is enough for a single-process, local-only deployment.
+2. **Size and format.** A question that is blank, longer than 1,000 characters, or contains control characters (anything besides tabs and newlines) gets a 422.
+3. **Injection heuristics.** Patterns for well-known injection and jailbreak phrasings in English, Filipino and Taglish, such as "ignore previous instructions", "kalimutan mo ang naunang utos", "i-ignore mo yung instructions", role-play setups, and chat-template markers. Invisible characters and full-width letters are folded away first. A match gets an `out_of_scope` Refusal.
+4. **Llama Prompt Guard** (`meta-llama/llama-prompt-guard-2-86m` on Groq). A score of 0.5 or more gets the same Refusal. If the classifier errors, times out (5 s, no retries) or hits Groq's limit of 30 requests a minute, the request continues on the heuristics alone and a warning is logged ([ADR 0003](docs/adr/0003-injection-guard-fails-open.md)). The question itself is never logged.
+
+The two layers cover each other's gaps. In a live check on 2026-10-06, Prompt Guard flagged none of the 49 Golden Set questions, but on its own it missed 12 of the 25 attacks in `tests/test_guards.py`, including every Filipino one. It also scored the ordinary question "Do I still need to follow the old instructions on the form?" 0.998, so it gets refused. No threshold can fix that, and it is a known limitation.
+
 ## Retrieval eval
 
 The Golden Set (`evals/golden_set.yaml`) has 49 questions. It was **LLM-drafted from the source documents and reviewed by the author**. 43 are answerable and 6 are Out-of-Corpus Questions (Pag-IBIG, DFA, LTO, Makati City, PSA). 11 (22%) are in Filipino or Taglish. Some are trick questions, such as a bare form number, a paraphrase that avoids the document's own wording, or an Agency the Corpus doesn't cover. Two questions span two Agencies. Each answerable question names the document and section that answers it, not Passage ids, so the Golden Set survives re-chunking.
