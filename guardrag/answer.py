@@ -1,16 +1,22 @@
 """The `/ask` contract: what a citizen gets back. Names follow CONTEXT.md."""
 
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
+
+from guardrag.guards import MAX_QUESTION_CHARS, check_question
 
 Confidence = Literal["high", "low", "none"]
 RefusalKind = Literal["out_of_corpus", "out_of_scope"]
 
 
 class AskRequest(BaseModel):
-    question: str = Field(min_length=1)
+    """Oversized or malformed input fails validation, so it gets a 422 before any model call."""
+
+    question: Annotated[
+        str, Field(min_length=1, max_length=MAX_QUESTION_CHARS), AfterValidator(check_question)
+    ]
 
 
 class DraftAnswer(BaseModel):

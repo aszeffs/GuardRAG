@@ -25,7 +25,7 @@ def ground(draft: DraftAnswer, retrieved: Sequence[RetrievedPassage]) -> AskResp
       README, never from the model.
     """
     if draft.out_of_scope:
-        return _refusal("out_of_scope", OUT_OF_SCOPE_MESSAGE)
+        return out_of_scope()
     by_id = {p.passage_id: p for p in retrieved}
     claimed = list(dict.fromkeys(draft.citations))
     cited = [by_id[pid] for pid in claimed if pid in by_id]
@@ -45,6 +45,11 @@ def _confidence(
     """The README's rules: `high` needs the best retrieved Passage cited and nothing dropped."""
     nothing_dropped = len(cited) == len(claimed)
     return "high" if nothing_dropped and retrieved[0] in cited else "low"
+
+
+def out_of_scope() -> AskResponse:
+    """The polite decline for an Out-of-Scope Request."""
+    return _refusal("out_of_scope", OUT_OF_SCOPE_MESSAGE)
 
 
 def _refusal(kind: RefusalKind, message: str) -> AskResponse:

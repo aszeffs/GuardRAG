@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     answer_model: str = ANSWER_MODEL
     retriever: RetrieverMode = "hybrid"
     retrieval_k: int = 5
+    prompt_guard_model: str = "meta-llama/llama-prompt-guard-2-86m"
+    rate_limit_requests: int = 20
+    rate_limit_window_seconds: float = 60
 
 
 @lru_cache
