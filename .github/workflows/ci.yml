@@ -44,3 +44,63 @@ jobs:
       - name: Apply schema
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/init.sql
       - run: pytest -rs
+
+  retrieval-eval:
+    name: retrieval-eval
+    runs-on: ubuntu-latest
+    services:
+      db:
+        # Same digest as the test job above; bump them together.
+        image: pgvector/pgvector:pg17@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+        env:
+          POSTGRES_USER: guardrag
+          POSTGRES_PASSWORD: guardrag
+          POSTGRES_DB: guardrag
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U guardrag -d guardrag"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgresql://guardrag:guardrag@localhost:5432/guardrag
+      FASTEMBED_CACHE_PATH: ${{ github.workspace }}/.cache/models
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e .
+      - name: Apply schema
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/init.sql
+      # Each source is downloaded once and then reused, so government servers see one fetch per
+      # manifest change. A partial match restores the old downloads and fetches only new entries.
+      - name: Cache the raw Corpus downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data/raw
+          key: corpus-raw-${{ hashFiles('guardrag/ingest/sources.yaml') }}
+          restore-keys: corpus-raw-
+      - name: Cache the embedder
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache
+          key: embedder-paraphrase-multilingual-MiniLM-L12-v2
+      - name: Seed the Corpus
+        run: python -m guardrag.ingest
+      # Retrieval only, so no LLM cost. Fails the PR if hybrid recall@5 drops below 0.65
+      # (0.721 on the Corpus as of October 2026; see README "Retrieval eval").
+      - name: Retrieval eval
+        run: >-
+          python -m guardrag.evals.retrieval --gate hybrid --min-recall 0.65
+          --out "$RUNNER_TEMP/retrieval.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: retrieval-eval
+          path: ${{ runner.temp }}/retrieval.json
+          if-no-files-found: ignore

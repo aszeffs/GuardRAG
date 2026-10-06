@@ -1,0 +1,145 @@
+{
+  "k": 5,
+  "golden_set": {
+    "questions": 49,
+    "answerable": 43,
+    "out_of_corpus": 6,
+    "by_language": {
+      "en": 38,
+      "fil": 5,
+      "taglish": 6
+    }
+  },
+  "retrievers": {
+    "vector": {
+      "overall": {
+        "questions": 43,
+        "recall": 0.5698,
+        "mrr": 0.412
+      },
+      "by_language": {
+        "en": {
+          "questions": 34,
+          "recall": 0.6324,
+          "mrr": 0.4328
+        },
+        "fil": {
+          "questions": 4,
+          "recall": 0.25,
+          "mrr": 0.25
+        },
+        "taglish": {
+          "questions": 5,
+          "recall": 0.4,
+          "mrr": 0.4
+        }
+      },
+      "misses": [
+        "sss-salary-loan-eligibility",
+        "sss-maternity-eligibility",
+        "sss-unemployment-eligibility",
+        "sss-unemployment-law",
+        "sss-retirement-age",
+        "sss-retirement-taglish",
+        "sss-conso-penalties",
+        "sss-emergency-loan-amount",
+        "bir-form-1902",
+        "bir-tax-clearance",
+        "bir-estate-ecar",
+        "philhealth-id-ofw",
+        "philhealth-add-dependent",
+        "philhealth-foreign-retiree",
+        "philhealth-home-dialysis",
+        "uhc-every-filipino-covered",
+        "pasig-close-business",
+        "pasig-certificate-of-occupancy",
+        "senior-id-and-discount"
+      ]
+    },
+    "keyword": {
+      "overall": {
+        "questions": 43,
+        "recall": 0.5581,
+        "mrr": 0.3709
+      },
+      "by_language": {
+        "en": {
+          "questions": 34,
+          "recall": 0.6176,
+          "mrr": 0.3956
+        },
+        "fil": {
+          "questions": 4,
+          "recall": 0.25,
+          "mrr": 0.25
+        },
+        "taglish": {
+          "questions": 5,
+          "recall": 0.4,
+          "mrr": 0.3
+        }
+      },
+      "misses": [
+        "sss-maternity-eligibility",
+        "sss-unemployment-eligibility",
+        "sss-unemployment-law",
+        "sss-funeral-without-receipt",
+        "sss-retirement-age",
+        "sss-retirement-taglish",
+        "sss-disability-documents",
+        "sss-change-msc",
+        "bir-tin-first-job",
+        "bir-estate-ecar",
+        "philhealth-id-ofw",
+        "philhealth-add-dependent",
+        "philhealth-home-dialysis",
+        "uhc-every-filipino-covered",
+        "pasig-certificate-of-occupancy",
+        "senior-id-and-discount",
+        "pasig-business-and-bir-receipts",
+        "pwd-discount-law",
+        "arta-processing-time",
+        "philid-free"
+      ]
+    },
+    "hybrid": {
+      "overall": {
+        "questions": 43,
+        "recall": 0.7209,
+        "mrr": 0.4938
+      },
+      "by_language": {
+        "en": {
+          "questions": 34,
+          "recall": 0.7941,
+          "mrr": 0.5436
+        },
+        "fil": {
+          "questions": 4,
+          "recall": 0.25,
+          "mrr": 0.25
+        },
+        "taglish": {
+          "questions": 5,
+          "recall": 0.6,
+          "mrr": 0.35
+        }
+      },
+      "misses": [
+        "sss-salary-loan-eligibility",
+        "sss-maternity-eligibility",
+        "sss-unemployment-eligibility",
+        "sss-unemployment-law",
+        "sss-retirement-age",
+        "sss-retirement-taglish",
+        "bir-estate-ecar",
+        "philhealth-add-dependent",
+        "philhealth-home-dialysis",
+        "uhc-every-filipino-covered",
+        "pasig-certificate-of-occupancy",
+        "senior-id-and-discount",
+        "pasig-business-and-bir-receipts"
+      ]
+    }
+  }
+}

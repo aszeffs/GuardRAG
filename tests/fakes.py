@@ -21,6 +21,18 @@ class StaticRetriever:
 
 
 @dataclass
+class ScriptedRetriever:
+    """Returns a preset ranking per query (none for an unknown query), cut to `k`."""
+
+    rankings: dict[str, list[RetrievedPassage]]
+    queries: list[str] = field(default_factory=list)
+
+    def search(self, query: str, k: int) -> list[RetrievedPassage]:
+        self.queries.append(query)
+        return self.rankings.get(query, [])[:k]
+
+
+@dataclass
 class ScriptedLLM:
     """Returns preset drafts in order, including ones citing Passages it wasn't given."""
 

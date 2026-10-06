@@ -1,0 +1,489 @@
+# Golden Set (CONTEXT.md) for the retrieval eval (#9) and, later, the answer evals.
+#
+# LLM-drafted from the source documents, reviewed by the author.
+#
+# Each question is either `answerable`, with `expected` Targets, or `out_of_corpus`, with the
+# `agency` its Refusal should point to. A Target names a document by its title in
+# guardrag/ingest/sources.yaml, plus a section heading as ingest stores it. With no section, any
+# Passage of the document meets it. `any_of` lists alternative places the same fact is stated.
+# All Targets are needed for a full answer, so a question spanning two Agencies has two.
+#
+# language: en | fil | taglish. Tags: trick (written to mislead a retriever or an answer),
+# exact-term (hinges on a form number, peso amount or acronym), cross-agency, statute.
+
+questions:
+  # SSS
+  - id: sss-salary-loan-eligibility
+    question: How many posted contributions do I need to qualify for an SSS salary loan?
+    language: en
+    kind: answerable
+    expected:
+      - document: "SSS: Salary Loan"
+        section: Qualifying Conditions
+
+  - id: sss-salary-loan-interest
+    question: What is the interest rate on an SSS salary loan?
+    language: en
+    kind: answerable
+    expected:
+      - document: "SSS: Salary Loan"
+        section: Loan Details
+
+  - id: sss-calamity-loan-amount
+    question: How much can I borrow from SSS after a typhoon, and what interest is charged?
+    language: en
+    kind: answerable
+    tags: [trick]
+    note: Says "after a typhoon" rather than "calamity loan".
+    expected:
+      - document: "SSS: Calamity Loan"
+        section: Calamity Loan Amount
+
+  - id: sss-calamity-vs-salary-interest
+    question: Is the interest on an SSS calamity loan lower than on a salary loan?
+    language: en
+    kind: answerable
+    tags: [trick]
+    note: Needs both loans' rates; a retriever tends to return only one of them.
+    expected:
+      - document: "SSS: Calamity Loan"
+        section: Calamity Loan Amount
+      - document: "SSS: Salary Loan"
+        section: Loan Details
+
+  - id: sss-maternity-eligibility
+    question: Ilang buwan ng hulog sa SSS ang kailangan para makakuha ng maternity benefit?
+    language: fil
+    kind: answerable
+    expected:
+      - document: "SSS: Maternity Benefit"
+        section: Qualifying Conditions
+
+  - id: sss-maternity-allocation
+    question: Pwede bang i-share ng misis ko sa akin yung maternity leave credits niya? Ilang days?
+    language: taglish
+    kind: answerable
+    expected:
+      - document: "SSS: Maternity Benefit"
+        section: Allocation of Maternity Leave Credits
+
+  - id: sss-sickness-notification
+    question: >-
+      I'm sick and resting at home. How many days do I have to notify my employer so I can claim
+      the SSS sickness benefit?
+    language: en
+    kind: answerable
+    expected:
+      - document: "SSS: Sickness Benefit"
+        section: Prescriptive Period
+
+  - id: sss-unemployment-eligibility
+    question: I was retrenched. Can I claim the SSS unemployment benefit, and what do I need?
+    language: en
+    kind: answerable
+    expected:
+      - document: "SSS: Unemployment Benefit"
+        section: Eligibility Requirements
+
+  - id: sss-unemployment-law
+    question: >-
+      What does the Social Security Act say about how much the unemployment insurance benefit is
+      and how often it can be claimed?
+    language: en
+    kind: answerable
+    tags: [statute]
+    expected:
+      - document: "Republic Act No. 11199 (Social Security Act of 2018)"
+        section: Section 14-B
+
+  - id: sss-funeral-without-receipt
+    question: >-
+      My husband died and I paid for the funeral, but I lost the official receipt. What can I
+      submit instead to claim the SSS funeral benefit?
+    language: en
+    kind: answerable
+    expected:
+      - any_of:
+          - document: "SSS: Funeral Benefit"
+            section: If filed by the surviving legal spouse
+          - document: "SSS: Funeral Benefit"
+            section: "In lieu of Official Receipt, submit (original copy):"
+          - document: "SSS: Funeral Benefit"
+            section: B. Proof of defrayal of funeral expense
+
+  - id: sss-retirement-age
+    question: At what age can I retire under SSS, and how many contributions do I need?
+    language: en
+    kind: answerable
+    expected:
+      - document: "SSS: Retirement Benefit"
+        section: Qualifying Conditions
+
+  - id: sss-retirement-taglish
+    question: Pwede na ba ako mag-retire sa SSS at 60 kung may 120 months contributions na ako?
+    language: taglish
+    kind: answerable
+    expected:
+      - document: "SSS: Retirement Benefit"
+        section: Qualifying Conditions
+
+  - id: sss-pension-loan-amount
+    question: How much can an SSS retiree pensioner borrow through the pension loan?
+    language: en
+    kind: answerable
+    expected:
+      - any_of:
+          - document: "SSS: New Pension Loan Retiree"
+            section: Loan Details
+          - document: "SSS: Pension Loan First Time Applicants"
+            section: Loan Details
+
+  - id: sss-death-pension
+    question: How is the monthly death pension computed for the beneficiaries of an SSS member?
+    language: en
+    kind: answerable
+    expected:
+      - document: "SSS: Death Benefit"
+        section: Benefit Details
+
+  - id: sss-disability-documents
+    question: What documents do I need to file an SSS disability claim?
+    language: en
+    kind: answerable
+    expected:
+      - document: "SSS: Disability Benefit"
+        section: How to Apply
+
+  - id: sss-change-msc
+    question: Can a self-employed member change their monthly salary credit?
+    language: en
+    kind: answerable
+    tags: [exact-term]
+    expected:
+      - document: "SSS: Pay Contribution"
+        section: Changing your MSC
+
+  - id: sss-conso-penalties
+    question: What happens to my unpaid loan penalties if I join the SSS Conso Loan program?
+    language: en
+    kind: answerable
+    expected:
+      - any_of:
+          - document: "SSS: Consolidated Loan Program"
+            section: Loan Consolidation Process
+          - document: "SSS: Consolidated Loan Program"
+            section: Payment Options and Penalty Condonation
+
+  - id: sss-emergency-loan-amount
+    question: How is the amount of the SSS emergency loan determined?
+    language: en
+    kind: answerable
+    expected:
+      - document: "SSS: Emergency Loan Program"
+        section: Loan Details
+
+  # BIR
+  - id: bir-tin-first-job
+    question: I just got my first job. How do I get a TIN through my employer?
+    language: en
+    kind: answerable
+    expected:
+      - any_of:
+          - document: "BIR Citizen's Charter: Revenue District Office External Services"
+            section: >-
+              1. Online Application for Taxpayer Identification Number (TIN) of Local Employee
+          - document: "BIR Citizen's Charter: Revenue District Office External Services"
+            section: >-
+              2. Manual Processing of Application for Taxpayer Identification Number (TIN) of
+              Local Employee
+          - document: "BIR Citizen's Charter: Revenue District Office External Services"
+            section: >-
+              3. Manual Processing of Application for Taxpayer Identification Number (TIN) of
+              Local Employee [Bulk Transactions
+
+  - id: bir-form-1902
+    question: What is BIR Form 1902 for?
+    language: en
+    kind: answerable
+    tags: [exact-term, trick]
+    note: A bare form number; vector search alone tends to confuse neighbouring form numbers.
+    expected:
+      - any_of:
+          - document: "BIR Citizen's Charter: Revenue District Office External Services"
+            section: >-
+              1. Online Application for Taxpayer Identification Number (TIN) of Local Employee
+          - document: "BIR Citizen's Charter: Revenue District Office External Services"
+            section: >-
+              2. Manual Processing of Application for Taxpayer Identification Number (TIN) of
+              Local Employee
+          - document: "BIR Citizen's Charter: Revenue District Office External Services"
+            section: >-
+              3. Manual Processing of Application for Taxpayer Identification Number (TIN) of
+              Local Employee [Bulk Transactions
+
+  - id: bir-tin-card
+    question: How do I get a BIR TIN card, and what do I bring?
+    language: en
+    kind: answerable
+    expected:
+      - document: "BIR Citizen's Charter: Revenue District Office External Services"
+        section: 24. Processing of Application for Taxpayer Identification Number (TIN) Card
+
+  - id: bir-tax-clearance
+    question: How do I get a BIR tax clearance certificate for a bank loan?
+    language: en
+    kind: answerable
+    expected:
+      - document: "BIR Citizen's Charter: Revenue District Office External Services"
+        section: 5. Processing of Tax Clearance Certificate (General Purpose)
+
+  - id: bir-authority-to-print
+    question: My shop needs to issue receipts. How do I get an Authority to Print from the BIR?
+    language: en
+    kind: answerable
+    tags: [exact-term]
+    expected:
+      - document: "BIR Citizen's Charter: Revenue District Office External Services"
+        section: >-
+          12. Processing of Application for Request for Authority to Print (ATP)
+          Receipts/Invoices
+
+  - id: bir-estate-ecar
+    question: Namatay ang tatay ko. Paano kumuha ng eCAR para sa lupa niya sa BIR?
+    language: fil
+    kind: answerable
+    expected:
+      - any_of:
+          - document: "BIR Citizen's Charter: Revenue District Office External Services"
+            section: >-
+              30. Processing and Issuance of Electronic Certificate Authorizing Registration
+              (eCAR) for Estate of the Decedent
+          - document: "BIR Citizen's Charter: Revenue District Office External Services"
+            section: >-
+              27. Processing and Issuance of Approved ONETT Computation Sheet (OCS) of Tax Due On
+              Estate of the Decedent
+
+  - id: train-tax-exempt-income
+    question: Up to what annual taxable income is an individual exempt from income tax under TRAIN?
+    language: en
+    kind: answerable
+    tags: [statute, exact-term]
+    expected:
+      - document: "Republic Act No. 10963 (Tax Reform for Acceleration and Inclusion)"
+        section: Section 5
+
+  # PhilHealth
+  - id: philhealth-id-ofw
+    question: How can an OFW get a copy of their PhilHealth ID?
+    language: en
+    kind: answerable
+    expected:
+      - document: "PhilHealth Citizen's Charter 2024 Vol. 7: Member Management Group External Services"
+        section: 7. ISSUANCE OF PHILHEALTH ID (WALK-IN)
+
+  - id: philhealth-add-dependent
+    question: Paano mag-add ng dependent sa PhilHealth ko? Anong documents ang kailangan?
+    language: taglish
+    kind: answerable
+    expected:
+      - any_of:
+          - document: "PhilHealth Citizen's Charter 2024 Vol. 7: Member Management Group External Services"
+            section: 2. AMENDMENT OF MEMBER DATA RECORD (WALK-IN AND THROUGH E-MAIL)
+          - document: "PhilHealth Citizen's Charter 2024 Vol. 11: Regional Office External Services"
+            section: 24. UPDATING OF MEMBER DATA RECORDS (MDR) AND DECLARATION OF DEPENDENTS
+
+  - id: philhealth-konsulta
+    question: How do I register with a PhilHealth Konsulta provider?
+    language: en
+    kind: answerable
+    tags: [exact-term]
+    expected:
+      - document: "PhilHealth Citizen's Charter 2024 Vol. 11: Regional Office External Services"
+        section: 5. KONSULTA REGISTRATION
+
+  - id: philhealth-self-employed-premium
+    question: I'm self-employed. How do I pay my PhilHealth premium contributions?
+    language: en
+    kind: answerable
+    expected:
+      - document: "PhilHealth Citizen's Charter 2024 Vol. 11: Regional Office External Services"
+        section: 13. PAYMENT OF PREMIUM CONTRIBUTION – DIRECT CONTRIBUTOR
+
+  - id: philhealth-foreign-retiree
+    question: Can a foreign retiree living in the Philippines become a PhilHealth member?
+    language: en
+    kind: answerable
+    expected:
+      - document: "PhilHealth Citizen's Charter 2024 Vol. 11: Regional Office External Services"
+        section: 2. MEMBERSHIP REGISTRATION AND ISSUANCE OF MDR AND PIN (FOREIGN NATIONALS)
+
+  - id: philhealth-home-dialysis
+    question: Does PhilHealth cover peritoneal dialysis done at home?
+    language: en
+    kind: answerable
+    expected:
+      - document: "PhilHealth: Benefits"
+
+  - id: uhc-every-filipino-covered
+    question: Kasama ba ang lahat ng Pilipino sa PhilHealth ayon sa Universal Health Care Act?
+    language: fil
+    kind: answerable
+    tags: [statute]
+    expected:
+      - document: "Republic Act No. 11223 (Universal Health Care Act)"
+        section: Section 5
+
+  # Pasig City
+  - id: pasig-new-business-permit
+    question: What are the requirements for a new business permit in Pasig City?
+    language: en
+    kind: answerable
+    expected:
+      - document: "Pasig City Citizen's Charter: Business Permit and Licensing Department"
+        section: A. NEW BUSINESS REGISTRATION (90 minutes)
+
+  - id: pasig-close-business
+    question: Magsasara na yung negosyo ko sa Pasig. Ano ang process para i-retire yung business?
+    language: taglish
+    kind: answerable
+    expected:
+      - document: "Pasig City Citizen's Charter: Business Permit and Licensing Department"
+        section: >-
+          E. ASSESSMENT OF FEES FOR THE RETIREMENT OR CLOSURE OF A BUSINESS ESTABLISHMENT (90
+          minutes)
+
+  - id: pasig-certificate-of-occupancy
+    question: How do I apply for a certificate of occupancy for a newly built house in Pasig?
+    language: en
+    kind: answerable
+    expected:
+      - document: "Pasig City Citizen's Charter: Office of the Building Official"
+        section: 2. APPLICATION FOR CERTIFICATE OF OCCUPANCY
+
+  - id: pasig-pwd-id
+    question: Paano kumuha ng PWD ID sa Pasig? Ano ang mga kailangan?
+    language: fil
+    kind: answerable
+    expected:
+      - document: "Pasig City Citizen's Charter: Persons with Disability Affairs Office"
+
+  - id: pasig-solo-parent-id
+    question: How do I get a solo parent ID in Pasig City?
+    language: en
+    kind: answerable
+    expected:
+      - document: "Pasig City Citizen's Charter: Social Welfare and Development Office"
+
+  - id: pasig-peso-accreditation
+    question: How can our company get accredited with the Pasig PESO so we can post job vacancies?
+    language: en
+    kind: answerable
+    tags: [exact-term]
+    expected:
+      - document: "Pasig City Citizen's Charter: Public Employment Service Office"
+
+  # Statutes and questions spanning two Agencies
+  - id: senior-id-and-discount
+    question: >-
+      How do I get a senior citizen ID in Pasig, and what discount does it entitle me to under the
+      law?
+    language: en
+    kind: answerable
+    tags: [cross-agency, statute]
+    expected:
+      - document: "Pasig City Citizen's Charter: Office of the Senior Citizen Affairs"
+      - any_of:
+          - document: "Republic Act No. 9994 (Expanded Senior Citizens Act of 2010)"
+            section: SEC. 2
+          - document: "Republic Act No. 9994 (Expanded Senior Citizens Act of 2010)"
+            section: Section 3
+
+  - id: pasig-business-and-bir-receipts
+    question: >-
+      I'm opening a store in Pasig. What do I need for the business permit, and how do I get the
+      BIR's authority to print receipts?
+    language: en
+    kind: answerable
+    tags: [cross-agency]
+    expected:
+      - document: "Pasig City Citizen's Charter: Business Permit and Licensing Department"
+        section: A. NEW BUSINESS REGISTRATION (90 minutes)
+      - document: "BIR Citizen's Charter: Revenue District Office External Services"
+        section: >-
+          12. Processing of Application for Request for Authority to Print (ATP)
+          Receipts/Invoices
+
+  - id: pwd-discount-law
+    question: What discounts are persons with disability entitled to under the law?
+    language: en
+    kind: answerable
+    tags: [statute]
+    expected:
+      - document: "Republic Act No. 10754 (Expanded benefits and privileges of persons with disability)"
+        section: SECTION 1
+
+  - id: arta-processing-time
+    question: >-
+      What is the longest a government office may take to act on a simple application under the
+      Ease of Doing Business Act?
+    language: en
+    kind: answerable
+    tags: [statute]
+    expected:
+      - document: >-
+          Republic Act No. 11032 (Ease of Doing Business and Efficient Government Service Delivery
+          Act of 2018)
+        section: Section 9
+
+  - id: philid-free
+    question: Libre ba ang pagkuha ng PhilID o national ID?
+    language: taglish
+    kind: answerable
+    tags: [statute, exact-term]
+    expected:
+      - document: "Republic Act No. 11055 (Philippine Identification System Act)"
+        section: Section 6
+
+  # Out-of-Corpus Questions
+  - id: ooc-pagibig-housing-loan
+    question: How do I apply for a Pag-IBIG housing loan?
+    language: en
+    kind: out_of_corpus
+    agency: Pag-IBIG Fund
+    tags: [trick]
+    note: Pag-IBIG is a named Agency in the domain but excluded from the Corpus.
+
+  - id: ooc-pagibig-mp2
+    question: Paano mag-open ng MP2 savings sa Pag-IBIG?
+    language: fil
+    kind: out_of_corpus
+    agency: Pag-IBIG Fund
+
+  - id: ooc-passport-renewal
+    question: How do I renew my Philippine passport?
+    language: en
+    kind: out_of_corpus
+    agency: Department of Foreign Affairs
+
+  - id: ooc-drivers-license
+    question: Paano mag-renew ng driver's license sa LTO? Magkano ang bayad?
+    language: taglish
+    kind: out_of_corpus
+    agency: Land Transportation Office
+
+  - id: ooc-makati-business-permit
+    question: What are the requirements for a business permit in Makati City?
+    language: en
+    kind: out_of_corpus
+    agency: Makati City
+    tags: [trick]
+    note: The Corpus has Pasig's business permit charter, which must not be passed off as Makati's.
+
+  - id: ooc-psa-birth-certificate
+    question: How do I request a copy of my PSA birth certificate online?
+    language: en
+    kind: out_of_corpus
+    agency: Philippine Statistics Authority
+    tags: [trick]
+    note: PSA appears in the Corpus only through the PhilSys Act and as a place to get documents.
+
