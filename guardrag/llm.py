@@ -38,10 +38,26 @@ class GroqLLM:
         return Groq(api_key=self.api_key)
 
     def draft(self, question: str, passages: Sequence[RetrievedPassage]) -> DraftAnswer:
-        completion = self._client.chat.completions.create(
-            model=self.model,
-            messages=build_messages(question, passages),
-            response_format={"type": "json_object"},
-            temperature=0,
-        )
+        from groq import BadRequestError
+
+        try:
+            completion = self._client.chat.completions.create(
+                model=self.model,
+                messages=build_messages(question, passages),
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+        except BadRequestError as e:
+            # In JSON mode Groq rejects a reply that isn't valid JSON instead of returning it.
+            if _error_code(e.body) != "json_validate_failed":
+                raise
+            return parse_draft(None)
         return parse_draft(completion.choices[0].message.content)
+
+
+def _error_code(body: object) -> str | None:
+    if isinstance(body, dict):
+        error = body.get("error", body)
+        if isinstance(error, dict):
+            return error.get("code")
+    return None

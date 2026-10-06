@@ -49,9 +49,13 @@ class FakeClassifier:
 
 @dataclass
 class FakeGroqClient:
-    """Mimics `groq.Groq().chat.completions.create`, replying with preset message contents."""
+    """Mimics `groq.Groq().chat.completions.create`, replying with preset message contents.
+
+    Raises `error` instead, if set.
+    """
 
     replies: list[str | None]
+    error: Exception | None = None
     requests: list[dict] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -59,5 +63,7 @@ class FakeGroqClient:
 
     def _create(self, **kwargs) -> SimpleNamespace:
         self.requests.append(kwargs)
+        if self.error is not None:
+            raise self.error
         content = self.replies[len(self.requests) - 1]
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
