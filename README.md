@@ -39,6 +39,27 @@ A cited answer's Confidence comes from the evidence, never from the model:
 
 The rules use rank rather than score because scores are comparable only within one retriever mode: cosine similarity, `ts_rank_cd` and RRF are on different scales.
 
+## Retrieval eval
+
+The Golden Set (`evals/golden_set.yaml`) has 49 questions. It was **LLM-drafted from the source documents and reviewed by the author**. 43 are answerable and 6 are Out-of-Corpus Questions (Pag-IBIG, DFA, LTO, Makati City, PSA). 11 (22%) are in Filipino or Taglish. Some are trick questions, such as a bare form number, a paraphrase that avoids the document's own wording, or an Agency the Corpus doesn't cover. Two questions span two Agencies. Each answerable question names the document and section that answers it, not Passage ids, so the Golden Set survives re-chunking.
+
+```sh
+python -m guardrag.evals.retrieval              # all three retrievers; writes evals/results/retrieval.json
+python -m guardrag.evals.retrieval --gate hybrid --min-recall 0.65
+```
+
+recall@5 is the share of a question's expected sections found in the top 5, averaged over the answerable questions. MRR is 1 / rank of the first Passage from an expected section, or 0 if none is in the top 5. Before scoring, the command checks that every expected section exists in the Corpus and stops if one doesn't, so a typo or an extraction change can't pass as a retrieval miss. On the Corpus as of October 2026 ([results](evals/results/retrieval.json)):
+
+| Retriever | recall@5 | MRR | English recall@5 | Filipino recall@5 | Taglish recall@5 |
+|---|---|---|---|---|---|
+| vector | 0.570 | 0.412 | 0.632 | 0.250 | 0.400 |
+| keyword | 0.558 | 0.371 | 0.618 | 0.250 | 0.400 |
+| **hybrid (RRF)** | **0.721** | **0.494** | 0.794 | 0.250 | 0.600 |
+
+Hybrid search beats either retriever alone, and it lifts recall@5 over vector-only by 15 points. Questions in Filipino are still the weak spot: the Corpus is English, and the 384-dimension multilingual embedder only partly bridges the gap. With only 4 Filipino and 5 Taglish questions, those columns are indicative only.
+
+Every PR runs the eval in CI (`retrieval-eval`) on a freshly seeded Corpus, at no LLM cost. Raw downloads and the embedder are cached between runs. The job fails if hybrid recall@5 falls below **0.65**, about three questions below today's score.
+
 ## Tests
 
 ```sh
