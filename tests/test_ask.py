@@ -243,9 +243,10 @@ def test_personal_data_never_reaches_the_logs(parts, caplog) -> None:
     with caplog.at_level(logging.DEBUG):
         TestClient(app).post("/ask", json={"question": question})
         logging.getLogger("somewhere.else").error("Failed for %s", EMAIL, exc_info=ValueError(TIN))
+        logging.getLogger("somewhere.else").info("TIN %d on file", 123456789000)
 
     assert "[redacted ID number]" in caplog.text
-    for value in (TIN, MOBILE, EMAIL):
+    for value in (TIN, MOBILE, EMAIL, "123456789000"):
         assert value not in caplog.text
         assert all(
             value not in r.getMessage() and value not in (r.exc_text or "") for r in caplog.records

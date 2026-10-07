@@ -22,7 +22,7 @@ _PHONE = "|".join(
         r"(?:\(0\d{2,3}\)[ -]?|0\d{2}-)\d{3}[ -]?\d{4}",  # provincial: (032) 123-4567
     ]
 )
-# Grouped as each agency prints them. Bare digit runs need 9+ digits, past any fee written without
+# Grouped as each Agency prints them. Bare digit runs need 9+ digits, past any fee written without
 # separators; dates, form numbers and circulars ("RR No. 8-2018") never get there.
 _ID = "|".join(
     [
@@ -31,6 +31,7 @@ _ID = "|".join(
         r"\d{2}[ -]\d{7}[ -]\d",  # SSS number
         r"\d{2}[ -]\d{9}[ -]\d",  # PhilHealth Identification Number
         r"\d{4}-\d{4}-\d{4}(?:-\d{4})?",  # Pag-IBIG MID, PhilSys Number
+        r"\d{4} \d{4} \d{4} \d{4}",  # PhilSys Number as the PhilID card prints it
         r"\d{9,16}",
     ]
 )
@@ -47,7 +48,17 @@ def redact(text: str, keep: Iterable[str] = ()) -> str:
     an Agency's hotline or email from the Passages it was given, but never the asker's own data.
     """
     kept = {_key(m) for k in keep for m in _PII.finditer(k)}
-    return _PII.sub(lambda m: m[0] if _key(m) in kept else _label(m), text)
+
+    def replace(m: re.Match[str]) -> str:
+        return m[0] if _key(m) in kept or _is_peso_amount(m) else _label(m)
+
+    return _PII.sub(replace, text)
+
+
+def _is_peso_amount(match: re.Match[str]) -> bool:
+    """A bare digit run written as a fee ("Php 123456789") is not an identifier."""
+    before = match.string[max(0, match.start() - 4) : match.start()]
+    return bool(match["id"]) and re.search(r"(?i)(?:php|₱|\bp) ?$", before) is not None
 
 
 def _label(match: re.Match[str]) -> str:
@@ -71,6 +82,9 @@ def install_log_redaction() -> None:
         record = make_record(*args, **kwargs)
         # The arguments are redacted one by one rather than merged into the message, because
         # some formatters unpack them (uvicorn's access log does).
+        if any(_is_long_number(a) for a in _values(record.args)):
+            # "%d" can't print a label, so the message is formatted here instead.
+            record.msg, record.args = redact(record.getMessage()), None
         record.msg = _redacted_arg(record.msg)
         if isinstance(record.args, Mapping):
             record.args = {k: _redacted_arg(v) for k, v in record.args.items()}
@@ -86,8 +100,20 @@ def install_log_redaction() -> None:
     logging.setLogRecordFactory(redacting_record)
 
 
+def _values(args: object) -> Iterable[object]:
+    if isinstance(args, Mapping):
+        return args.values()
+    return args if isinstance(args, tuple) else ()
+
+
+def _is_long_number(value: object) -> bool:
+    return (
+        isinstance(value, int) and not isinstance(value, bool) and redact(str(value)) != str(value)
+    )
+
+
 def _redacted_arg(value: object) -> object:
-    """Strings redacted, numbers as they are (for %d), anything else redacted when printed."""
+    """Strings redacted, short numbers as they are (for %d), anything else redacted when printed."""
     if isinstance(value, str):
         return redact(value)
     if value is None or isinstance(value, (bool, int, float)):
@@ -106,45 +132,54 @@ class _Redacted:
         return redact(repr(self.value))
 
 
-# What counts as someone's personal data in a question. Case-insensitive; names are not.
-_DATA = (
+# Someone's identifiers and contact details, as a question names them. Case-insensitive; names
+# are not.
+_ID_FIELD = (
     r"(?i:tin|tax identification number|sss(?: number| no\.?| id)?"
     r"|philhealth(?: number| no\.?| id| pin)?|pag-?ibig(?: mid| number| no\.?)?"
     r"|mid(?: number| no\.?)"
     r"|philsys(?: number| id| card)?|psn|national id(?: number)?"
     r"|(?:mobile|cell(?:phone)?|cp|phone|contact|telephone|landline) (?:number|no\.?|details)"
-    r"|number|e-?mail(?: address)?|(?:home )?address|birthday|birthdate|date of birth)"
+    r"|e-?mail(?: address)?)"
 )
+# Also a place's or a famous person's ("the address of Makati", "the birthday of Jose Rizal"), so
+# these only count for someone the question marks as a private person.
+_PERSONAL_FIELD = rf"(?:{_ID_FIELD}|(?i:number|(?:home )?address|birthday|birthdate|date of birth))"
 _HONORIFIC = (
     r"(?i:mr|mrs|ms|miss|dr|atty|engr|sir|ma'?am|mayor|kap|kapitan|konsehal|gov|sen|cong|kuya"
-    r"|ate|tito|tita|lolo|lola)\.?\s+"
+    r"|ate)\.?\s+"
 )
 _NAME_WORD = r"[A-Z][a-z]+(?![\w-])"
-_NAME = (
-    rf"(?:{_HONORIFIC})?{_NAME_WORD}(?:\s+(?:(?i:de|del|dela|de la|delos|de los)\s+)?{_NAME_WORD})*"
-)
+_MORE_NAME = rf"\s+(?:(?i:de|del|dela|de la|delos|de los)\s+)?{_NAME_WORD}"
+_FULL_NAME = rf"{_NAME_WORD}(?:{_MORE_NAME})+"  # one capitalised word could be a town or a brand
+_TITLED_NAME = rf"{_HONORIFIC}{_NAME_WORD}(?:{_MORE_NAME})*"
 # People who are neither the asker nor someone the asker legitimately acts for (family, employees).
-_OTHER = (
+# Not a bare "someone": "the TIN of someone who died" is an estate tax question.
+_THIRD_PARTY = (
     r"(?i:neighbou?rs?|ex(?:-?(?:wife|husband|partner|girlfriend|boyfriend))?|boss|co-?workers?"
-    r"|colleagues?|classmates?|friends?|tenants?|landlord|landlady|stranger|someone(?: else)?"
-    r"|somebody(?: else)?|another person|other (?:person|people)|crush|debtors?)"
+    r"|colleagues?|classmates?|friends?|tenants?|landlord|landlady|stranger|someone else"
+    r"|somebody else|another person|other (?:person|people)|crush|debtors?)"
 )
-_OTHER_FIL = (
+_THIRD_PARTY_FIL = (
     r"(?i:kapitbahay|kaibigan|amo|katrabaho|kaklase|nangungupahan|ibang tao|isang tao|taong ito"
     r"|taong iyan|ex)"
 )
+_FAMILY_FIL = r"(?i:lolo|lola|nanay|tatay|inay|itay|mama|papa|anak|asawa|kapatid|tito|tita)\b"
 _POSSESSIVE = r"(?:'s|’s|'|’)"
 _PERSONAL_DATA_REQUEST = re.compile(
     "|".join(
         [
-            rf"\b{_DATA} of (?P<name>{_NAME})",
-            rf"\b(?P<owner>{_NAME}){_POSSESSIVE}\s+{_DATA}\b",
-            rf"\b{_DATA} (?i:ni|nina|kay|kina)\s+\w+",
-            rf"\b{_DATA} of (?i:(?:my|our|his|her|their|this|that|a|an|the|some) )?{_OTHER}\b",
-            rf"\b{_OTHER}{_POSSESSIVE}\s+{_DATA}\b",
-            rf"\b{_DATA} (?i:ng) (?i:(?:aking|aming|isang) )?{_OTHER_FIL}\b",
+            rf"\b{_ID_FIELD} of (?P<name>{_FULL_NAME})",
+            rf"\b{_PERSONAL_FIELD} of (?P<titled>{_TITLED_NAME})",
+            rf"\b(?P<owner>{_FULL_NAME}){_POSSESSIVE}\s+{_ID_FIELD}\b",
+            rf"\b(?P<titled_owner>{_TITLED_NAME}){_POSSESSIVE}\s+{_PERSONAL_FIELD}\b",
+            rf"\b{_PERSONAL_FIELD} (?i:ni|nina|kay|kina)\s+(?!{_FAMILY_FIL})\w+",
+            rf"\b{_PERSONAL_FIELD} of (?i:(?:my|our|his|her|their|this|that|a|an|the) )?"
+            rf"{_THIRD_PARTY}\b",
+            rf"\b{_THIRD_PARTY}{_POSSESSIVE}\s+{_PERSONAL_FIELD}\b",
+            rf"\b{_PERSONAL_FIELD} (?i:ng) (?i:(?:aking|aming|isang) )?{_THIRD_PARTY_FIL}\b",
             rf"(?i:\b(?:who owns|whose|who is the owner of|kanino(?: ba)?(?: ang| yung)?))\s+"
-            rf"(?i:(?:the|this|that|ang|yung) )?{_DATA}\b",
+            rf"(?i:(?:the|this|that|ang|yung) )?{_ID_FIELD}\b",
         ]
     )
 )
@@ -154,7 +189,6 @@ _INSTITUTION = re.compile(
     r"|Hospital|Fund|System|Commission|Authority|Agency|Province|Provincial|Regional|District"
     r"|Revenue|Insurance|Corporation|Bank|School|University|Health|Security|Registry|Embassy)\b"
 )
-_HOW_TO = re.compile(r"(?i)\b(?:how|paano|saan|where)\b")
 
 
 def asks_for_personal_data(question: str) -> bool:
@@ -162,11 +196,14 @@ def asks_for_personal_data(question: str) -> bool:
     details: an Out-of-Scope Request.
 
     Asking about one's own data, a family member's, an employee's, or an Agency's contacts is
-    fine, and so is asking how to get such data, which the answer model then handles.
+    fine. So is anything the patterns miss, which the answer model is told to decline.
     """
-    if _HOW_TO.search(question):
-        return False
     return any(
-        not _INSTITUTION.search(m["name"] or m["owner"] or "")
-        for m in _PERSONAL_DATA_REQUEST.finditer(question)
+        not _INSTITUTION.search(_named(m)) for m in _PERSONAL_DATA_REQUEST.finditer(question)
     )
+
+
+def _named(match: re.Match[str]) -> str:
+    """The would-be person a request names, if it names one."""
+    groups = ("name", "titled", "owner", "titled_owner")
+    return next((name for g in groups if (name := match[g])), "")
