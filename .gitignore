@@ -15,4 +15,5 @@ node_modules/
 .promptfoo/
 evals/results/*.json
 !evals/results/retrieval.json
+!evals/results/answers.json
 !evals/results/.gitkeep

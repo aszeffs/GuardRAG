@@ -26,14 +26,15 @@ from ragas.metrics.collections.faithfulness.util import NLIStatementOutput
 
 from guardrag.config import JUDGE_MODEL
 from guardrag.embedder import Embedder
+from guardrag.evals.answers import Metric
 from guardrag.evals.clients import judge_client
 
 # Groq's free tier rejects any request to the judge model that asks for more than 1,000 output
 # tokens (Ragas asks for 1,024), so ask for the most it allows.
 MAX_OUTPUT_TOKENS = 1000
 # Faithfulness asks for a verdict and a reason per claim, which for a long answer outgrows that
-# limit in one reply, so the claims are judged a few at a time.
-CLAIMS_PER_VERDICT = 4
+# limit in one reply, so each request to the judge carries only a few claims.
+CLAIMS_PER_REQUEST = 4
 
 
 class _CorpusEmbedding(BaseRagasEmbedding):
@@ -51,12 +52,12 @@ class _CorpusEmbedding(BaseRagasEmbedding):
 
 
 class BatchedFaithfulness(Faithfulness):
-    """Ragas faithfulness, with the claims judged in batches of CLAIMS_PER_VERDICT."""
+    """Ragas faithfulness, with the claims judged in batches of CLAIMS_PER_REQUEST."""
 
     async def _create_verdicts(self, statements: list[str], context: str) -> NLIStatementOutput:
         verdicts = []
-        for start in range(0, len(statements), CLAIMS_PER_VERDICT):
-            batch = statements[start : start + CLAIMS_PER_VERDICT]
+        for start in range(0, len(statements), CLAIMS_PER_REQUEST):
+            batch = statements[start : start + CLAIMS_PER_REQUEST]
             verdicts += (await super()._create_verdicts(batch, context)).statements
         return NLIStatementOutput(statements=verdicts)
 
@@ -66,13 +67,12 @@ class RagasJudge:
         self,
         api_key: str,
         embedder: Embedder,
-        metrics: Sequence[str],
+        metrics: Sequence[Metric],
         model: str = JUDGE_MODEL,
-        client: Any = None,
     ) -> None:
         llm = llm_factory(
             model,
-            client=client or judge_client(api_key),
+            client=judge_client(api_key),
             temperature=0,
             max_tokens=MAX_OUTPUT_TOKENS,
         )
@@ -87,16 +87,18 @@ class RagasJudge:
         # One loop for the whole run: the async client's connections are bound to it.
         self._loop = asyncio.new_event_loop()
 
-    def score(self, question: str, answer: str, contexts: Sequence[str]) -> dict[str, float]:
+    def score(self, question: str, answer: str, passages: Sequence[str]) -> dict[Metric, float]:
         return {
-            name: self._loop.run_until_complete(self._score(name, question, answer, contexts))
+            name: self._loop.run_until_complete(self._score(name, question, answer, passages))
             for name in self.metrics
         }
 
-    async def _score(self, name: str, question: str, answer: str, contexts: Sequence[str]) -> float:
+    async def _score(
+        self, name: Metric, question: str, answer: str, passages: Sequence[str]
+    ) -> float:
         inputs = {"user_input": question, "response": answer}
         if name != "answer_relevancy":
-            inputs["retrieved_contexts"] = list(contexts)
+            inputs["retrieved_contexts"] = list(passages)
         try:
             return float((await self.metrics[name].ascore(**inputs)).value)
         except APIError:
