@@ -1,4 +1,4 @@
-# Golden Set (CONTEXT.md) for the retrieval eval (#9) and, later, the answer evals.
+# Golden Set (CONTEXT.md) for the retrieval eval (#9) and the answer eval (#12).
 #
 # LLM-drafted from the source documents, reviewed by the author.
 #
@@ -9,7 +9,8 @@
 # All Targets are needed for a full answer, so a question spanning two Agencies has two.
 #
 # language: en | fil | taglish. Tags: trick (written to mislead a retriever or an answer),
-# exact-term (hinges on a form number, peso amount or acronym), cross-agency, statute.
+# exact-term (hinges on a form number, peso amount or acronym), cross-agency, statute, and pr
+# (one of the 12 answerable questions the answer eval runs on every PR; the full set runs nightly).
 
 questions:
   # SSS
@@ -25,6 +26,7 @@ questions:
     question: What is the interest rate on an SSS salary loan?
     language: en
     kind: answerable
+    tags: [pr]
     expected:
       - document: "SSS: Salary Loan"
         section: Loan Details
@@ -33,7 +35,7 @@ questions:
     question: How much can I borrow from SSS after a typhoon, and what interest is charged?
     language: en
     kind: answerable
-    tags: [trick]
+    tags: [trick, pr]
     note: Says "after a typhoon" rather than "calamity loan".
     expected:
       - document: "SSS: Calamity Loan"
@@ -63,6 +65,7 @@ questions:
     question: Pwede bang i-share ng misis ko sa akin yung maternity leave credits niya? Ilang days?
     language: taglish
     kind: answerable
+    tags: [pr]
     expected:
       - document: "SSS: Maternity Benefit"
         section: Allocation of Maternity Leave Credits
@@ -102,6 +105,7 @@ questions:
       submit instead to claim the SSS funeral benefit?
     language: en
     kind: answerable
+    tags: [pr]
     expected:
       - any_of:
           - document: "SSS: Funeral Benefit"
@@ -158,7 +162,7 @@ questions:
     question: Can a self-employed member change their monthly salary credit?
     language: en
     kind: answerable
-    tags: [exact-term]
+    tags: [exact-term, pr]
     expected:
       - document: "SSS: Pay Contribution"
         section: Changing your MSC
@@ -187,6 +191,7 @@ questions:
     question: I just got my first job. How do I get a TIN through my employer?
     language: en
     kind: answerable
+    tags: [pr]
     expected:
       - any_of:
           - document: "BIR Citizen's Charter: Revenue District Office External Services"
@@ -205,7 +210,7 @@ questions:
     question: What is BIR Form 1902 for?
     language: en
     kind: answerable
-    tags: [exact-term, trick]
+    tags: [exact-term, trick, pr]
     note: A bare form number; vector search alone tends to confuse neighbouring form numbers.
     expected:
       - any_of:
@@ -267,7 +272,7 @@ questions:
     question: Up to what annual taxable income is an individual exempt from income tax under TRAIN?
     language: en
     kind: answerable
-    tags: [statute, exact-term]
+    tags: [statute, exact-term, pr]
     expected:
       - document: "Republic Act No. 10963 (Tax Reform for Acceleration and Inclusion)"
         section: Section 5
@@ -296,7 +301,7 @@ questions:
     question: How do I register with a PhilHealth Konsulta provider?
     language: en
     kind: answerable
-    tags: [exact-term]
+    tags: [exact-term, pr]
     expected:
       - document: "PhilHealth Citizen's Charter 2024 Vol. 11: Regional Office External Services"
         section: 5. KONSULTA REGISTRATION
@@ -338,6 +343,7 @@ questions:
     question: What are the requirements for a new business permit in Pasig City?
     language: en
     kind: answerable
+    tags: [pr]
     expected:
       - document: "Pasig City Citizen's Charter: Business Permit and Licensing Department"
         section: A. NEW BUSINESS REGISTRATION (90 minutes)
@@ -364,6 +370,7 @@ questions:
     question: Paano kumuha ng PWD ID sa Pasig? Ano ang mga kailangan?
     language: fil
     kind: answerable
+    tags: [pr]
     expected:
       - document: "Pasig City Citizen's Charter: Persons with Disability Affairs Office"
 
@@ -439,7 +446,7 @@ questions:
     question: Libre ba ang pagkuha ng PhilID o national ID?
     language: fil
     kind: answerable
-    tags: [statute, exact-term]
+    tags: [statute, exact-term, pr]
     expected:
       - document: "Republic Act No. 11055 (Philippine Identification System Act)"
         section: Section 6

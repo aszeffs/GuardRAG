@@ -49,7 +49,7 @@ def build_messages(question: str, passages: Sequence[RetrievedPassage]) -> list[
     Each Passage goes in with its `passage_id`, fenced off as data rather than instructions, and
     the model is told to cite only those ids and to reply in the question's Answer Language.
     """
-    fenced = "\n".join(_passage_block(p) for p in passages) or "(no Passages were found)"
+    fenced = "\n".join(passage_block(p) for p in passages) or "(no Passages were found)"
     user = (
         f"<passages>\n{fenced}\n</passages>\n\n"
         f"<question>\n{_escape_fence_tags(question)}\n</question>\n\n"
@@ -67,7 +67,8 @@ def parse_draft(content: str | None) -> DraftAnswer:
     return draft.model_copy(update={"answer": draft.answer.translate(_TYPOGRAPHIC_TO_ASCII)})
 
 
-def _passage_block(p: RetrievedPassage) -> str:
+def passage_block(p: RetrievedPassage) -> str:
+    """One Passage as the answer model is shown it (the answer eval gives the judge the same)."""
     where = "; ".join(
         part
         for part in (

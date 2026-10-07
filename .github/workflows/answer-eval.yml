@@ -1,0 +1,107 @@
+name: Answer eval
+
+# Ragas scores of real answers (#12; README "Answer eval"). Every PR scores faithfulness on the
+# 12 Golden Set questions tagged `pr` and fails below 0.85. The full Golden Set, with all three
+# metrics and the Out-of-Corpus refusal rate, runs nightly and on demand, because a full run costs
+# about 420k judge tokens on Groq (it needs the pay-as-you-go Dev tier).
+on:
+  pull_request:
+  schedule:
+    - cron: "0 18 * * *" # 02:00 in Manila
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a PR cancels its unfinished run, so stale runs don't use up the Groq quota.
+concurrency:
+  group: answer-eval-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  answer-eval:
+    name: answer-eval
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    services:
+      db:
+        # Same digest as ci.yml; bump them together.
+        image: pgvector/pgvector:pg17@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+        env:
+          POSTGRES_USER: guardrag
+          POSTGRES_PASSWORD: guardrag
+          POSTGRES_DB: guardrag
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U guardrag -d guardrag"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgresql://guardrag:guardrag@localhost:5432/guardrag
+      FASTEMBED_CACHE_PATH: ${{ github.workspace }}/.cache/models
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      # Empty on PRs from forks and from Dependabot, which get no repository secrets.
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+      # A PR without the key passes with a notice instead of failing. Anything else needs the key.
+      - name: Check for the Groq key
+        id: key
+        run: |
+          if [ -n "$GROQ_API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            echo "::notice::No GROQ_API_KEY (a fork or Dependabot PR), so the answer eval is skipped."
+          else
+            echo "::error::GROQ_API_KEY is not set."
+            exit 1
+          fi
+      - if: steps.key.outputs.present
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: steps.key.outputs.present
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - if: steps.key.outputs.present
+        run: pip install -e ".[dev,eval]"
+      # The rate-limit test needs the eval extra, which lint-and-test doesn't install.
+      - if: steps.key.outputs.present
+        run: pytest -rs tests/test_answer_eval.py
+      - name: Apply schema
+        if: steps.key.outputs.present
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/init.sql
+      - name: Cache the raw Corpus downloads
+        if: steps.key.outputs.present
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data/raw
+          key: corpus-raw-${{ hashFiles('guardrag/ingest/sources.yaml') }}
+          restore-keys: corpus-raw-
+      - name: Cache the embedder
+        if: steps.key.outputs.present
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache
+          key: embedder-paraphrase-multilingual-MiniLM-L12-v2
+      - name: Seed the Corpus
+        if: steps.key.outputs.present
+        run: python -m guardrag.ingest
+      - name: Answer eval (PR subset)
+        if: steps.key.outputs.present && github.event_name == 'pull_request'
+        run: >-
+          python -m guardrag.evals.answers --subset pr --metrics faithfulness
+          --min-faithfulness 0.85 --out "$RUNNER_TEMP/answers.json"
+      - name: Answer eval (full Golden Set)
+        if: steps.key.outputs.present && github.event_name != 'pull_request'
+        run: >-
+          python -m guardrag.evals.answers --min-faithfulness 0.85
+          --out "$RUNNER_TEMP/answers.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.key.outputs.present
+        with:
+          name: answer-eval
+          path: ${{ runner.temp }}/answers.json
+          if-no-files-found: ignore

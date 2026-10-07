@@ -81,3 +81,13 @@ def test_only_main_publishes_signs_and_attests() -> None:
     assert set(writers) == {"publish", "attest"}
     for job in writers.values():
         assert job["if"] == "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+
+
+def test_the_answer_eval_skips_every_llm_step_without_the_groq_key() -> None:
+    """Fork and Dependabot PRs get no secrets: the job must pass with a notice, not fail."""
+    job = load(ROOT / ".github" / "workflows" / "answer-eval.yml")["jobs"]["answer-eval"]
+    check, *rest = job["steps"]
+
+    assert check["id"] == "key"
+    assert rest
+    assert all("steps.key.outputs.present" in step.get("if", "") for step in rest)
