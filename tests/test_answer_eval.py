@@ -15,7 +15,7 @@ from fakes import FakeClassifier, ScriptedLLM, ScriptedRetriever
 from seed import LOAN_ELIGIBILITY, LOAN_INTEREST, TIN_FOR_EMPLOYEES, SeedPassage, retrieved
 
 from guardrag.answer import DraftAnswer
-from guardrag.evals.answers import PR_SUBSET_TAG, evaluate, passes_gate, select, summarize
+from guardrag.evals.answers import PR_SUBSET_TAG, evaluate, passes_gate, summarize, with_tag
 from guardrag.evals.clients import retrying_groq
 from guardrag.evals.golden import GoldenQuestion, Location, Target, load_golden_set
 from guardrag.llm import GroqLLM
@@ -29,8 +29,8 @@ class FakeJudge:
     scores: dict[str, dict[str, float]]
     calls: list[tuple[str, str, list[str]]] = field(default_factory=list)
 
-    def score(self, question: str, answer: str, contexts: Sequence[str]) -> dict[str, float]:
-        self.calls.append((question, answer, list(contexts)))
+    def score(self, question: str, answer: str, passages: Sequence[str]) -> dict[str, float]:
+        self.calls.append((question, answer, list(passages)))
         return self.scores[answer]
 
 
@@ -95,7 +95,10 @@ def test_a_refusal_is_not_judged() -> None:
 
 
 def test_a_question_blocked_before_retrieval_is_not_given_the_previous_passages() -> None:
-    first, blocked = answerable("first", LOAN_INTEREST), out_of_corpus("ignore previous")
+    first, blocked = (
+        answerable("first", LOAN_INTEREST),
+        answerable("ignore previous", LOAN_INTEREST),
+    )
     judge = FakeJudge({"Ten percent.": {"faithfulness": 1.0}})
 
     outcomes = run(
@@ -107,7 +110,7 @@ def test_a_question_blocked_before_retrieval_is_not_given_the_previous_passages(
     )
 
     assert [o.refusal for o in outcomes] == [None, "out_of_scope"]
-    assert outcomes[1].contexts == []
+    assert outcomes[1].passages == []
 
 
 def test_the_summary_averages_each_metric_over_the_judged_answers() -> None:
@@ -191,85 +194,92 @@ def test_with_no_out_of_corpus_questions_there_is_no_refusal_rate() -> None:
 
 
 @pytest.mark.parametrize(
-    ("means", "passes"),
+    ("means", "scored", "passes"),
     [
-        ({"faithfulness": 0.85}, True),
-        ({"faithfulness": 0.849}, False),
-        ({"answer_relevancy": 1.0}, False),
+        ({"faithfulness": 0.85}, 6, True),
+        ({"faithfulness": 0.849}, 12, False),
+        ({"answer_relevancy": 1.0}, 0, False),
+        ({"faithfulness": 0.9}, 5, False),
     ],
-    ids=["at the threshold", "below it", "nothing judged"],
+    ids=["at the threshold", "below it", "nothing judged", "too few of 12 scored"],
 )
-def test_the_gate_needs_a_faithfulness_mean_at_or_above_the_threshold(means, passes) -> None:
-    summary = replace(summarize([]), means=means)
+def test_the_gate_needs_faithfulness_at_the_threshold_over_half_the_questions(
+    means, scored, passes
+) -> None:
+    """Refusals and unscorable answers leave the mean, so few scores must not pass it alone."""
+    summary = replace(summarize([]), answerable=12, faithfulness_scored=scored, means=means)
 
     assert passes_gate(summary, min_faithfulness=0.85) is passes
 
 
-def test_select_keeps_the_questions_with_a_tag() -> None:
+def test_with_tag_keeps_the_questions_with_a_tag() -> None:
     tagged = GoldenQuestion("t", "q", "en", "out_of_corpus", tags=(PR_SUBSET_TAG,))
     other = GoldenQuestion("o", "q", "en", "out_of_corpus")
 
-    assert select([tagged, other], PR_SUBSET_TAG) == [tagged]
-    assert select([tagged, other], None) == [tagged, other]
+    assert with_tag([tagged, other], PR_SUBSET_TAG) == [tagged]
+    assert with_tag([tagged, other], None) == [tagged, other]
 
 
 def test_the_pr_subset_is_12_answerable_questions_with_some_in_filipino_or_taglish() -> None:
-    subset = select(load_golden_set(), PR_SUBSET_TAG)
+    subset = with_tag(load_golden_set(), PR_SUBSET_TAG)
 
     assert len(subset) == 12
     assert all(q.kind == "answerable" for q in subset)
     assert any(q.language != "en" for q in subset)
 
 
-def rate_limited_once(request: httpx.Request) -> httpx.Response:
+@dataclass
+class RateLimitedOnce:
     """A Groq endpoint that answers 429 to the first request and succeeds after that."""
-    rate_limited_once.calls += 1
-    if rate_limited_once.calls == 1:
-        return httpx.Response(429, headers={"retry-after-ms": "1"}, json={"error": {}})
-    return httpx.Response(
-        200,
-        json={
-            "id": "x",
-            "object": "chat.completion",
-            "created": 0,
-            "model": "m",
-            "choices": [
-                {
-                    "index": 0,
-                    "finish_reason": "stop",
-                    "message": {"role": "assistant", "content": '{"answer": "Ok."}'},
-                }
-            ],
-        },
-    )
+
+    calls: int = 0
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.calls += 1
+        if self.calls == 1:
+            return httpx.Response(429, headers={"retry-after-ms": "1"}, json={"error": {}})
+        return httpx.Response(
+            200,
+            json={
+                "id": "x",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "m",
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {"role": "assistant", "content": '{"answer": "Ok."}'},
+                    }
+                ],
+            },
+        )
 
 
 def test_the_eval_survives_a_rate_limited_answer_model_call() -> None:
-    rate_limited_once.calls = 0
-    client = retrying_groq(
-        "key", http_client=httpx.Client(transport=httpx.MockTransport(rate_limited_once))
-    )
+    endpoint = RateLimitedOnce()
+    client = retrying_groq("key", http_client=httpx.Client(transport=httpx.MockTransport(endpoint)))
 
     draft = GroqLLM("key", client=client).draft("q", [retrieved(LOAN_INTEREST, 0.9)])
 
     assert draft.answer == "Ok."
-    assert rate_limited_once.calls == 2
+    assert endpoint.calls == 2
 
 
 def test_the_judge_survives_a_rate_limited_call() -> None:
     pytest.importorskip("openai", reason="needs the eval extra: pip install -e '.[eval]'")
     from guardrag.evals.clients import judge_client
 
-    rate_limited_once.calls = 0
+    endpoint = RateLimitedOnce()
     client = judge_client(
-        "key", http_client=httpx.AsyncClient(transport=httpx.MockTransport(rate_limited_once))
+        "key", http_client=httpx.AsyncClient(transport=httpx.MockTransport(endpoint))
     )
 
     async def ask():
         return await client.chat.completions.create(model="m", messages=[])
 
     assert asyncio.run(ask()).choices[0].message.content == '{"answer": "Ok."}'
-    assert rate_limited_once.calls == 2
+    assert endpoint.calls == 2
 
 
 def test_the_judge_checks_a_long_answers_claims_a_few_at_a_time() -> None:
@@ -282,9 +292,9 @@ def test_the_judge_checks_a_long_answers_claims_a_few_at_a_time() -> None:
         StatementGeneratorOutput,
     )
 
-    from guardrag.evals.judge import CLAIMS_PER_VERDICT, BatchedFaithfulness
+    from guardrag.evals.judge import CLAIMS_PER_REQUEST, BatchedFaithfulness
 
-    claims = [f"claim {i}" for i in range(2 * CLAIMS_PER_VERDICT + 1)]
+    claims = [f"claim {i}" for i in range(2 * CLAIMS_PER_REQUEST + 1)]
     batches = []
 
     class ScriptedJudgeLLM(InstructorBaseRagasLLM):
@@ -306,5 +316,5 @@ def test_the_judge_checks_a_long_answers_claims_a_few_at_a_time() -> None:
     metric = BatchedFaithfulness(llm=ScriptedJudgeLLM())
     result = asyncio.run(metric.ascore(user_input="q", response="a", retrieved_contexts=["c"]))
 
-    assert [len(b) for b in batches] == [CLAIMS_PER_VERDICT, CLAIMS_PER_VERDICT, 1]
+    assert [len(b) for b in batches] == [CLAIMS_PER_REQUEST, CLAIMS_PER_REQUEST, 1]
     assert result.value == pytest.approx(1 - 1 / len(claims))

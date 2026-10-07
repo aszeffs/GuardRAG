@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     data_dir: str = "data"
     answer_model: str = ANSWER_MODEL
+    judge_model: str = JUDGE_MODEL
     retriever: RetrieverMode = "hybrid"
     retrieval_k: int = 5
     prompt_guard_model: str = PROMPT_GUARD_MODEL
