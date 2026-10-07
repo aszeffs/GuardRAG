@@ -20,6 +20,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3", "ruff>=0.7"]
+# The answer eval (#12). Ragas is pinned because its metrics API changes between minor releases,
+# and 0.4.3 imports a module langchain-community 0.4 removed.
+eval = ["ragas==0.4.3", "langchain-community<0.4", "openai>=1.0"]
 
 [build-system]
 requires = ["setuptools>=75"]

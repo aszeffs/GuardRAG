@@ -8,7 +8,7 @@ A secure RAG assistant over public Philippine government service documents (BIR,
 - FastAPI + PostgreSQL/pgvector, Docker Compose
 - Hybrid search: pgvector cosine + Postgres full-text, fused with Reciprocal Rank Fusion
 - Groq LLM with structured, cited answers (`answer`, `citations[]`, `confidence`) and an "I don't know" fallback
-- Evals: hand-written golden set (recall@5, MRR), Ragas (faithfulness, answer relevancy, context precision)
+- Evals: hand-written golden set (recall@5, MRR), Ragas (faithfulness, answer relevancy, context precision) with a judge from a different model family
 - Red-team: promptfoo suite (prompt injection, jailbreak, PII, off-topic)
 - GitHub Actions: eval and red-team gates, plus CodeQL, Gitleaks, Trivy, SBOM, signed images
 
@@ -83,6 +83,30 @@ The language columns show recall@5 / MRR over the answerable questions in that l
 A hit means a Passage came from the right section, not that it contains the answer. Most Service Document sections are short, but some are large. For example, RA 9994 "Section 3" has 72 Passages, and only one of them states the 20% discount. A few documents have no usable sections at all (the PhilHealth benefits page, and the Pasig PDAO and PESO charters), so for those any Passage of the document counts. These scores are therefore an upper bound on Passage-level recall. The answer evals (#12) measure whether the cited Passage actually supports the answer.
 
 Every PR runs the eval in CI (`retrieval-eval`) on a freshly seeded Corpus, at no LLM cost. Raw downloads and the embedder are cached between runs. The job fails if hybrid recall@5 falls below **0.65**, about three questions below today's score.
+
+## Answer eval
+
+```sh
+pip install -e ".[eval]"
+python -m guardrag.evals.answers                     # full Golden Set; writes evals/results/answers.json
+python -m guardrag.evals.answers --subset pr --metrics faithfulness --min-faithfulness 0.85
+```
+
+Each Golden Set question goes through `POST /ask` with the production pipeline: guards, hybrid retrieval, the answer model, grounding and redaction. A judge model then scores every answer that isn't a Refusal with [Ragas](https://docs.ragas.io) 0.4:
+
+- **Faithfulness** is the share of the answer's claims that the Passages given to the answer model support.
+- **Answer relevancy** generates questions back from the answer and measures how close they are to the question, using the Corpus's multilingual embedder.
+- **Context precision** checks whether the Passages the judge finds useful are ranked near the top. The Golden Set has no reference answers, so this is the variant without one.
+
+The judge sees each Passage exactly as the answer model did, with its document, section and As-of Date. Many Passages start mid-sentence, so without that header the judge marks true claims as unsupported. Refusals are not judged. An answerable question that gets a Refusal is listed instead. For an Out-of-Corpus Question, an `out_of_corpus` Refusal is the right reply, and the share of them is the **Out-of-Corpus refusal rate** (target ≥ 90%). An `out_of_scope` decline doesn't count, because it gives the citizen no Agency to turn to.
+
+The judge is `qwen/qwen3.8-27b`, so the answer model (`openai/gpt-oss-120b`) isn't grading its own work. The spec planned gpt-oss-120b as the judge for a Llama answer model, but Groq retired that Llama model, and Qwen is the only other chat family Groq serves. If the judge can't score an answer (it returns malformed or truncated output), that score is left out of the mean and the answer is listed as unscored.
+
+On the PR subset as of October 2026, faithfulness is **0.78**, so the gate fails. The judge's verdicts hold up on inspection. When retrieval brings back weak Passages, the answer model stretches them instead of refusing. It gives a sample computation's Php 20,000 as the Calamity Loan limit, and it gives the foreign-national TIN route to a local first-time employee. Two of the 12 answerable questions also get a Refusal although retrieval found the right section. Tightening the prompt is a follow-up. The full Golden Set table goes here after its first full run.
+
+In CI, the `answer-eval` workflow runs faithfulness on the 12 Golden Set questions tagged `pr` for every PR, and fails below **0.85**. The full Golden Set, with all three metrics, runs nightly and on manual dispatch, and its results file is uploaded as a run artifact. The checked-in results come from a local run. PRs from forks or Dependabot have no `GROQ_API_KEY`, so the job passes with a notice instead of failing.
+
+Ragas prompts carry long few-shot examples, so a judged answer costs about 11k judge tokens with all three metrics (about 4.5k for faithfulness alone). A full run needs about 420k, and a PR run about 55k. That is more than Groq's free tier allows: 200k tokens a day, 8,000 a minute, and 1,000 output tokens per request for the judge model. The eval therefore assumes Groq's pay-as-you-go Dev tier. Faithfulness still sends a long answer's claims to the judge four at a time, so no reply needs more than 1,000 tokens. Both Groq clients in the eval retry a 429 up to 10 times with backoff (the production clients don't), so a single rate limit doesn't fail the run, but running out of a daily limit does.
 
 ## Tests
 

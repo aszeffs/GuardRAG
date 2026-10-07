@@ -6,6 +6,9 @@ from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ANSWER_MODEL = "openai/gpt-oss-120b"
+# Ragas judge (#12): a different family from the answer model, so it isn't grading its own work.
+# Qwen is the only other chat family Groq serves as of October 2026.
+JUDGE_MODEL = "qwen/qwen3.8-27b"
 PROMPT_GUARD_MODEL = "meta-llama/llama-prompt-guard-2-86m"
 RetrieverMode = Literal["vector", "keyword", "hybrid"]
 
