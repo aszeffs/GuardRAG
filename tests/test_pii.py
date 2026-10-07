@@ -24,6 +24,7 @@ REDACTED = [
     ("Pag-IBIG MID 1234-5678-9012", f"Pag-IBIG MID {ID}"),
     ("PhilSys PSN 1234-5678-9012-3456", f"PhilSys PSN {ID}"),
     ("PSN 1234567890123456", f"PSN {ID}"),
+    ("PhilID 1234 5678 9012 3456", f"PhilID {ID}"),
     ("Call me at 09171234567.", f"Call me at {PHONE}."),
     ("Text 0917-123-4567 or 0917 123 4567", f"Text {PHONE} or {PHONE}"),
     ("+63 917 123 4567", PHONE),
@@ -40,6 +41,8 @@ NEAR_MISSES = [
     "Pay PHP 1,500.00 at the RDO.",
     "The fee is ₱1,234,567.89.",
     "A fee of 100000000.50 applies.",
+    "Capital of Php 123456789 or more.",
+    "Capital of P123456789.",
     "Fill out BIR Form 1902 and Form 0605.",
     "Forms 1902, 1904 and 2316.",
     "File on or before 2026-10-07.",
@@ -95,6 +98,10 @@ PERSONAL_DATA_REQUESTS = [
     "I need the PhilSys number of another person.",
     "Ano ang address ng kapitbahay ko?",
     "Hanapin mo ang TIN ng ibang tao.",
+    # Asked as a how-to, but still about one person
+    "How can I get the TIN of Juan Dela Cruz?",
+    "Where can I find my neighbor's SSS number?",
+    "Paano ko makukuha ang SSS number ng kapitbahay ko?",
     # Reverse lookups
     "Who owns the TIN 123-456-789?",
     "Whose phone number is 09171234567?",
@@ -117,6 +124,13 @@ OWN_OR_GENERAL = [
     "Is a TIN required for a person without income?",
     "How many digits is a PhilSys number?",
     "How do I get the TIN of someone who died?",
+    "What is the address of Makati?",
+    "What is the address of Rizal Park?",
+    "What is the number of Pasig?",
+    "What is the TIN of Jollibee?",
+    "Who owns the number 8888?",
+    "When is the birthday of Jose Rizal?",
+    "What is the address of Dr. Jose Fabella Memorial Hospital?",
     "Paano ko makukuha ang TIN ni Lolo para sa estate tax?",
 ]
 
