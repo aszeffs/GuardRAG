@@ -43,7 +43,9 @@ def create_app(
             raise HTTPException(429, "Too many requests", headers={"Retry-After": retry_after})
 
     @app.exception_handler(RequestValidationError)
-    async def without_input(request: Request, exc: RequestValidationError) -> JSONResponse:
+    async def validation_error_without_input(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
         # FastAPI's default 422 echoes the rejected question, which may hold personal data.
         errors = [{k: v for k, v in e.items() if k != "input"} for e in exc.errors()]
         return JSONResponse({"detail": jsonable_encoder(errors)}, status_code=422)
