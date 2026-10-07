@@ -3,17 +3,19 @@ are wired. Grounding is replaced here so these tests check only the wiring; test
 covers the real one."""
 
 import logging
+from dataclasses import replace
 from datetime import date
 
 import pytest
 from fakes import FakeClassifier, ScriptedLLM, StaticRetriever
 from fastapi.testclient import TestClient
 from seed import LOAN_APPLICATION, LOAN_ELIGIBILITY, TIN_FOR_EMPLOYEES, retrieved
+from uvicorn.logging import AccessFormatter
 
 from guardrag.answer import AskResponse, Citation, DraftAnswer
 from guardrag.api import create_app, create_production_app
 from guardrag.config import Settings
-from guardrag.grounding import OUT_OF_SCOPE_MESSAGE
+from guardrag.grounding import OUT_OF_SCOPE_MESSAGE, ground
 from guardrag.guards import MAX_QUESTION_CHARS, PromptGuard, RateLimiter
 from guardrag.llm import ANSWER_MODEL, GroqLLM
 from guardrag.retrieval import HybridRetriever
@@ -201,6 +203,95 @@ def test_a_client_over_the_rate_limit_gets_429_without_any_model_call(parts) -> 
     assert statuses == [200, 200, 429]
     assert len(parts["llm"].calls) == 2
     assert len(parts["classifier"].calls) == 2
+
+
+TIN = "123-456-789-000"
+MOBILE = "0917 123 4567"
+EMAIL = "juan.delacruz@gmail.com"
+
+
+def test_personal_data_in_the_answer_is_redacted_but_contacts_from_the_passages_are_kept(
+    parts,
+) -> None:
+    rdo = replace(RESULTS[0], text=RESULTS[0].text + " Hotline: (02) 8538 3200.")
+    parts["retriever"] = StaticRetriever([rdo])
+    parts["llm"] = ScriptedLLM(
+        [
+            DraftAnswer(
+                answer=f"Your TIN {TIN} and {MOBILE} stay with you. Call (02) 8538-3200.",
+                citations=[rdo.passage_id],
+            )
+        ]
+    )
+    parts["grounder"] = ground  # redaction needs a real answer to work on
+
+    body = ask(parts, f"My TIN is {TIN} and my number is {MOBILE}. How do I apply?").json()
+
+    assert body["answer"] == (
+        "Your TIN [redacted ID number] and [redacted phone number] stay with you. "
+        "Call (02) 8538-3200."
+    )
+    assert body["refusal"] is None
+
+
+def test_personal_data_never_reaches_the_logs(parts, caplog) -> None:
+    question = f"My TIN is {TIN}, mobile {MOBILE}, email {EMAIL}. How do I get a new TIN card?"
+    # A client error that echoes its input, as some HTTP errors do.
+    parts["classifier"] = FakeClassifier(error=RuntimeError(f"rejected input: {question}"))
+    app = create_app(**parts)
+
+    with caplog.at_level(logging.DEBUG):
+        TestClient(app).post("/ask", json={"question": question})
+        logging.getLogger("somewhere.else").error("Failed for %s", EMAIL, exc_info=ValueError(TIN))
+
+    assert "[redacted ID number]" in caplog.text
+    for value in (TIN, MOBILE, EMAIL):
+        assert value not in caplog.text
+        assert all(
+            value not in r.getMessage() and value not in (r.exc_text or "") for r in caplog.records
+        )
+
+
+def test_uvicorn_access_logs_still_format_with_redaction_on(parts) -> None:
+    create_app(**parts)
+    record = logging.getLogger("uvicorn.access").makeRecord(
+        "uvicorn.access",
+        logging.INFO,
+        __file__,
+        1,
+        '%s - "%s %s HTTP/%s" %d',
+        ("127.0.0.1:5000", "GET", f"/ask?email={EMAIL}", "1.1", 200),
+        None,
+    )
+
+    line = AccessFormatter('%(client_addr)s "%(request_line)s" %(status_code)s').format(record)
+
+    assert line == '127.0.0.1:5000 "GET /ask?email=[redacted email] HTTP/1.1" 200 OK'
+
+
+def test_a_rejected_question_is_not_echoed_in_the_422_body(parts) -> None:
+    question = f"My TIN is {TIN}. " + "x" * MAX_QUESTION_CHARS
+
+    response = ask(parts, question)
+
+    assert response.status_code == 422
+    assert TIN not in response.text
+    assert response.json()["detail"][0]["loc"] == ["body", "question"]
+
+
+@pytest.mark.parametrize(
+    "question",
+    ["What is the TIN of Juan Dela Cruz?", "Ano ang SSS number ni Maria Santos?"],
+    ids=["en", "fil"],
+)
+def test_a_request_for_another_persons_data_is_declined_without_any_model_call(
+    parts, question
+) -> None:
+    response = ask(parts, question)
+
+    assert response.json() == OUT_OF_SCOPE
+    assert parts["retriever"].queries == []
+    assert parts["llm"].calls == []
 
 
 def test_production_app_wires_groq_and_the_configured_retriever() -> None:
