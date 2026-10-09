@@ -48,6 +48,14 @@ def test_asks_the_answer_model_for_json() -> None:
     assert request["response_format"]["type"] in ("json_object", "json_schema")
 
 
+def test_asks_the_answer_model_to_reason_hard() -> None:
+    # At gpt-oss's default (medium) effort, a sample computation's figure was given as the
+    # Calamity Loan limit in about half of the runs (#36).
+    _, client = draft_with(reply(answer="a", citations=[202]))
+
+    assert client.requests[0]["reasoning_effort"] == "high"
+
+
 def test_every_passage_is_given_with_its_id() -> None:
     _, client = draft_with(reply(answer="a", citations=[202]))
 
