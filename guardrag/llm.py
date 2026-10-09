@@ -46,8 +46,7 @@ class GroqLLM:
                 messages=build_messages(question, passages),
                 response_format={"type": "json_object"},
                 temperature=0,
-                # gpt-oss reasons at medium effort by default, and at medium it often gave a
-                # sample computation's figure as a rule (#36). Non-reasoning models reject this.
+                # Why high, not gpt-oss's default medium: README "Answer eval" (#36).
                 reasoning_effort="high",
             )
         except BadRequestError as e:

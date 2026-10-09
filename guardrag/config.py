@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Must be a reasoning model: GroqLLM sends reasoning_effort, which other models reject.
 ANSWER_MODEL = "openai/gpt-oss-120b"
 # Ragas judge (#12): a different family from the answer model, so it isn't grading its own work.
 # Qwen is the only other chat family Groq serves as of October 2026.
