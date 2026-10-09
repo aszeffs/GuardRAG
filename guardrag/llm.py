@@ -46,6 +46,9 @@ class GroqLLM:
                 messages=build_messages(question, passages),
                 response_format={"type": "json_object"},
                 temperature=0,
+                # gpt-oss reasons at medium effort by default, and at medium it often gave a
+                # sample computation's figure as a rule (#36). Non-reasoning models reject this.
+                reasoning_effort="high",
             )
         except BadRequestError as e:
             # In JSON mode Groq rejects a reply that isn't valid JSON instead of returning it.
