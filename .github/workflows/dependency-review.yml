@@ -27,3 +27,13 @@ jobs:
           # Flag it for a decision rather than absorbing it silently through a
           # transitive dependency.
           deny-licenses: AGPL-3.0, GPL-3.0
+          # Recorded 2026-10-09 (#13); re-check by 2026-11-30, with the Trivy
+          # exceptions (#21). Both sit in promptfoo 0.124.1's tree, which only
+          # runs the red-team suite in CI against 127.0.0.1 and is not in the
+          # image. Neither code path runs there.
+          # - GHSA-c475-qrg2-pj4r: basic-ftp directory-listing ReDoS, via
+          #   proxy-agent > get-uri. promptfoo never fetches over FTP. The fix
+          #   (6.x) is a major past what get-uri accepts.
+          # - GHSA-86w9-cpqp-85rv: node-forge RSA signature check, via jks-js
+          #   (Java keystores for TLS config, unused). No patched release.
+          allow-ghsas: GHSA-c475-qrg2-pj4r, GHSA-86w9-cpqp-85rv

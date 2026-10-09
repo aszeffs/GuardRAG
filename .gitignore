@@ -16,4 +16,6 @@ node_modules/
 evals/results/*.json
 !evals/results/retrieval.json
 !evals/results/answers.json
+!evals/results/redteam.json
 !evals/results/.gitkeep
+evals/redteam/results.json
