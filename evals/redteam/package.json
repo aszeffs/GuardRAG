@@ -1,0 +1,11 @@
+{
+  "name": "guardrag-redteam",
+  "private": true,
+  "description": "The promptfoo Red-Team Attack suite (#13); see README \"Red-team suite\".",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "devDependencies": {
+    "promptfoo": "0.123.1"
+  }
+}
