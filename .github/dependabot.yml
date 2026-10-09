@@ -21,6 +21,13 @@ updates:
     multi-ecosystem-group: all-dependencies
     patterns: ["*"]
 
+  # promptfoo for the red-team suite (#13), pinned exactly in `package.json`
+  # and fully in `package-lock.json`.
+  - package-ecosystem: npm
+    directory: /evals/redteam
+    multi-ecosystem-group: all-dependencies
+    patterns: ["*"]
+
   # Actions are pinned to commit SHAs, which stops a moved tag from changing
   # what runs here. Without this, pinning would decay into running permanently
   # outdated actions. Dependabot bumps the SHA and its version comment together.
