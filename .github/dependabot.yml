@@ -20,6 +20,11 @@ updates:
     directory: /
     multi-ecosystem-group: all-dependencies
     patterns: ["*"]
+    ignore:
+      # ragas 0.4.3 imports langchain_community.chat_models.vertexai, which
+      # langchain-community 0.4 removed. Lift this when ragas is bumped.
+      - dependency-name: langchain-community
+        versions: [">=0.4"]
 
   # promptfoo for the red-team suite (#13), pinned exactly in `package.json`
   # and fully in `package-lock.json`.

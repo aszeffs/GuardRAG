@@ -84,10 +84,20 @@ def test_only_main_publishes_signs_and_attests() -> None:
 
 
 def test_the_answer_eval_skips_every_llm_step_without_the_groq_key() -> None:
-    """Fork and Dependabot PRs get no secrets: the job must pass with a notice, not fail."""
+    """Fork and Dependabot PRs get no secrets: the job must pass with a notice, not fail.
+
+    Only setup and the key-free checks of the eval extra run without the key.
+    """
     job = load(ROOT / ".github" / "workflows" / "answer-eval.yml")["jobs"]["answer-eval"]
     check, *rest = job["steps"]
+    ungated = [step for step in rest if "steps.key.outputs.present" not in step.get("if", "")]
 
     assert check["id"] == "key"
-    assert rest
-    assert all("steps.key.outputs.present" in step.get("if", "") for step in rest)
+    assert len(ungated) < len(rest)
+    assert [step.get("uses", "").split("@")[0] or step["run"] for step in ungated] == [
+        "actions/checkout",
+        "actions/setup-python",
+        'pip install -e ".[dev,eval]"',
+        'python -c "import guardrag.evals.judge"',
+        "pytest -rs tests/test_answer_eval.py",
+    ]
